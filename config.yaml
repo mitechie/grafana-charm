@@ -1,0 +1,44 @@
+options:
+  install_sources:
+    default: |
+      - 'https://packagecloud.io/grafana/stable/debian/ wheezy main'
+    type: string
+    description: |
+      Repository from which to install. May be one of the following:
+      distro, ppa:somecustom/ppa or a deb url sources entry (default).
+  install_keys:
+    default: |
+      - '7AD95B3F'
+    type: string
+    description: |
+      Repository key from which to install.
+  app_mode:
+    default: 'production'
+    type: string
+    description: 'production or development'
+  datasources:
+    default: |
+      - 'prometheus,BootStack Prometheus,proxy,http://localhost:9090,,,'
+    type: string
+    description: |
+      - type,name,access,url,password,user,database
+  default_dashboards:
+    default: ""
+    type: string
+    description: |
+      List of default dashboards to be loaded on Grafana storage backend
+      (default: sqlite3 backend)
+  nagios_context:
+    default: "juju"
+    type: string
+    description: |
+      A string that will be prepended to instance name to set the host name
+      in nagios. So for instance the hostname would be something like:
+          juju-myservice-0
+      If you're running multiple environments with the same services in them
+      this allows you to differentiate between them.
+  nagios_servicegroups:
+    default: "juju"
+    type: string
+    description: |
+      Comma separated list of nagios servicegroups for the graphite check
