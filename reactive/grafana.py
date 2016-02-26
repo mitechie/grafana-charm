@@ -66,7 +66,7 @@ def validate_datasources():
 
 
 def install_packages():
-    packages = ['grafana-server']
+    packages = ['grafana']
     config = hookenv.config()
     fetch.configure_sources(update=True)
     fetch.apt_install(packages)
@@ -74,11 +74,12 @@ def install_packages():
 
 @when('grafana.start')
 def start_grafana():
-    if not host.service_running('grafana-server'):
-        hookenv.log('Starting grafana...')
-        host.service_start('grafana-server')
-        set_state('grafana.started')
-    if any_file_changed(['/etc/grafana/grafana.ini']):
-        hookenv.log('Restarting grafana, config file changed...')
-        host.service_restart('grafana-server')
-    remove_state('grafana.start')
+    for svc in services()
+        if not host.service_running(svc):
+            hookenv.log('Starting grafana...')
+            host.service_start(svc)
+            set_state('grafana.started')
+        if any_file_changed(['/etc/grafana/grafana.ini']):
+            hookenv.log('Restarting grafana, config file changed...')
+            host.service_restart(svc)
+        remove_state('grafana.start')
