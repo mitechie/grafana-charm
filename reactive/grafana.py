@@ -1,19 +1,11 @@
 import os
-import re
 import glob
-import six
 from charmhelpers import fetch
 from charmhelpers.core import host, hookenv
 from charmhelpers.core.templating import render
 from charmhelpers.contrib.charmsupport import nrpe
 from charms.reactive import when, when_not, set_state, remove_state
 from charms.reactive.helpers import any_file_changed, data_changed
-
-if six.PY2:
-    import urlparse
-else:
-    import urllib.parse as urlparse
-
 
 @when_not('grafana.started')
 def setup_grafana():
@@ -57,8 +49,8 @@ def services():
 
 @when_not('nrpe-external-master.available')
 def wipe_nrpe_checks():
-    checks = ['/etc/nagios/nrpe.d/check_grafana.cfg',
-              '/var/lib/nagios/export/service__*_grafana.cfg']
+    checks = ['/etc/nagios/nrpe.d/check_grafana-server.cfg',
+              '/var/lib/nagios/export/service__*_grafana-server.cfg']
     for check in checks:
         for f in glob.glob(check):
             if os.path.isfile(f):
