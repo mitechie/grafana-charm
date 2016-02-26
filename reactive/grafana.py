@@ -33,7 +33,7 @@ def install_packages():
 
 
 @when('grafana.start')
-def setup_config()
+def setup_config():
     hookenv.status_set('maintenance', 'Configuring grafana')
     if data_changed('grafana.config', hookenv.config()):
         settings = {'config': hookenv.config(),
