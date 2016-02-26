@@ -1,7 +1,7 @@
 options:
   install_sources:
     default: |
-      - 'https://packagecloud.io/grafana/stable/debian/ wheezy main'
+      - 'deb https://packagecloud.io/grafana/stable/debian/ wheezy main'
     type: string
     description: |
       Repository from which to install. May be one of the following:
