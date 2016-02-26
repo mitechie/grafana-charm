@@ -58,7 +58,7 @@ def wipe_nrpe_checks():
 
 
 def validate_datasources():
-    config = resolve_config()
+    config = hookenv.config()
 
     if config.get('datasources', False):
         items = config['datasources'].split(',')
@@ -70,7 +70,7 @@ def validate_datasources():
 
 def install_packages():
     packages = ['grafana-server']
-    config = resolve_config()
+    config = hookenv.config()
     fetch.configure_sources()
     fetch.apt_install(packages)
 
