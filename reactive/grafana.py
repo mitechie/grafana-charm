@@ -74,7 +74,7 @@ def install_packages():
 
 @when('grafana.start')
 def start_grafana():
-    for svc in services()
+    for svc in services():
         if not host.service_running(svc):
             hookenv.log('Starting grafana...')
             host.service_start(svc)
