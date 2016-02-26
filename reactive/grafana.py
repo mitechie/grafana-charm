@@ -68,12 +68,12 @@ def validate_datasources():
 def install_packages():
     packages = ['grafana-server']
     config = hookenv.config()
-    fetch.configure_sources()
+    fetch.configure_sources(update=True)
     fetch.apt_install(packages)
 
 
 @when('grafana.start')
-def start_collectd():
+def start_grafana():
     if not host.service_running('grafana-server'):
         hookenv.log('Starting grafana...')
         host.service_start('grafana-server')
