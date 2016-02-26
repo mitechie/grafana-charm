@@ -10,12 +10,15 @@ from charms.reactive.helpers import any_file_changed, data_changed
 @when_not('grafana.started')
 def setup_grafana():
     hookenv.status_set('maintenance', 'Configuring grafana')
-    install_packages()
+    if data_changed('grafana.config', hookenv.config()):
+        install_packages()
     settings = {'config': hookenv.config(),
                 }
     render(source='grafana.ini.j2',
            target='/etc/grafana/grafana.ini',
            context=settings,
+           owner='root', group='grafana',
+           perms=0o640,
            )
 
     set_state('grafana.start')
