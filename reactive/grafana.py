@@ -11,7 +11,6 @@ from charms.reactive.helpers import any_file_changed, data_changed
 def setup_grafana():
     hookenv.status_set('maintenance', 'Configuring grafana')
     install_packages()
-    install_conf_d(get_plugins())
     settings = {'config': hookenv.config(),
                 }
     render(source='grafana.ini.j2',
