@@ -200,7 +200,7 @@ def check_adminuser():
 
         conn = sqlite3.connect('/var/lib/grafana/grafana.db')
         cur = conn.cursor()
-        query = cur.execute('SELECT id, login, salt FROM DATA_SOURCE')
+        query = cur.execute('SELECT id, login, salt FROM user')
         for row in query.fetchall():
             if row[1] == 'admin':
                 nagios_context = config.get('nagios_context', False)
