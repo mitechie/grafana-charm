@@ -4,7 +4,7 @@ from charmhelpers import fetch
 from charmhelpers.core import host, hookenv
 from charmhelpers.core.templating import render
 from charmhelpers.contrib.charmsupport import nrpe
-from charms.reactive import when, when_not, set_state, remove_state
+from charms.reactive import when, when_not, set_state, remove_state, only_once
 from charms.reactive.helpers import any_file_changed, data_changed
 
 # when
