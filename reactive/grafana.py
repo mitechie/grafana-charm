@@ -186,7 +186,8 @@ def check_adminuser():
     INSERT INTO "user" VALUES(1,0,'admin','root+bootstack-ps45@canonical.com','BootStack Team','309bc4e78bc60d02dc0371d9e9fa6bf9a809d5dc25c745b9e3f85c3ed49c6feccd4ffc96d1db922f4297663a209e93f7f2b6','LZeJ3nSdrC','hseJcLcnPN','',1,1,0,'light','2016-01-22 12:00:08','2016-01-22 12:02:13');
     """
     fetch.apt_install('python-pbkdf2')
-    passwd = hookenv.config()['admin_password']
+    config = hookenv.config()
+    passwd = config.get('admin_password', False)
     if not passwd:
         passwd = host.pwgen(16)
 
@@ -202,7 +203,7 @@ def check_adminuser():
         query = cur.execute('SELECT id, login, salt FROM DATA_SOURCE')
         for row in query.fetchall():
             if row[1] == 'admin':
-                nagios_context = hookenv.config()['nagios_context']
+                nagios_context = config.get('nagios_context', False)
                 if not nagios_context:
                     nagios_context = 'UNKNOWN'
                 email = 'root+%s@canonical.com' % nagios_context
