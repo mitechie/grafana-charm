@@ -159,7 +159,7 @@ def check_datasources():
                 if isdefault == 0:
                     conn.commit()
         conn.close()
-    except ImportError, e:
+    except ImportError as e:
         hookenv.log('Could not update data_source: {}'.format(e))
 
 
@@ -213,7 +213,7 @@ def check_adminuser():
                     hookenv.log('Could not update user table: hpwgen func failed')
                 break
         conn.close()
-    except ImportError, e:
+    except ImportError as e:
         hookenv.log('Could not update user table: {}'.format(e))
         return
 
@@ -223,6 +223,6 @@ def hpwgen(passwd, salt):
         import pbkdf2, hashlib
         hpasswd = pbkdf2.PBKDF2(passwd, salt, 10000, hashlib.sha256).hexread(50)
         return hpasswd
-    except ImportError, e:
+    except ImportError as e:
         hookenv.log('Could not generate PBKDF2 hashed password: {}'.format(e))
         return
