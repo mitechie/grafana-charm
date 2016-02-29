@@ -49,7 +49,7 @@ def setup_config():
         if not host.service_running(svc):
             hookenv.log('Starting {}...'.format(svc))
             host.service_start(svc)
-        if any_file_changed(['/etc/grafana/grafana.ini']):
+        elif any_file_changed(['/etc/grafana/grafana.ini']):
             hookenv.log('Restarting {}, config file changed...'.format(svc))
             host.service_restart(svc)
     set_state('grafana.started')
@@ -61,6 +61,12 @@ def setup_config():
 def check_config():
     if data_changed('grafana.config', hookenv.config()):
         setup_grafana()  # reconfigure and restart
+
+
+@only_once('grafana.started')
+def db_init():
+    check_datasources()
+    check_adminuser()
 
 
 @when('nrpe-external-master.available')
@@ -102,3 +108,121 @@ def validate_datasources():
             return False
         elif items[0] != 'prometheus' and items[2] != 'proxy':
             return False
+
+
+def check_datasources():
+    """
+    CREATE TABLE `data_source` (
+    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL
+    , `org_id` INTEGER NOT NULL
+    , `version` INTEGER NOT NULL
+    , `type` TEXT NOT NULL
+    , `name` TEXT NOT NULL
+    , `access` TEXT NOT NULL
+    , `url` TEXT NOT NULL
+    , `password` TEXT NULL
+    , `user` TEXT NULL
+    , `database` TEXT NULL
+    , `basic_auth` INTEGER NOT NULL
+    , `basic_auth_user` TEXT NULL
+    , `basic_auth_password` TEXT NULL
+    , `is_default` INTEGER NOT NULL
+    , `json_data` TEXT NULL
+    , `created` DATETIME NOT NULL
+    , `updated` DATETIME NOT NULL
+    , `with_credentials` INTEGER NOT NULL DEFAULT 0);
+    INSERT INTO "data_source" VALUES(1,1,0,'prometheus','BootStack Prometheus','proxy','http://localhost:9090','','','',0,'','',1,'{}','2016-01-22 12:11:06','2016-01-22 12:11:11',0);
+    """
+    try:
+        import sqlite3
+        conn = sqlite3.connect('/var/lib/grafana/grafana.db')
+        cur = conn.cursor()
+        query = cur.execute('SELECT COUNT(*) FROM DATA_SOURCE')
+        rows = query.fetchone()[0]
+        if rows == 0:
+            dss = hookenv.config()['datasources']
+            if len(dss) > 0:
+                stmt = 'INSERT INTO DATA_SOURCE (id, org_id, version'
+                stmt+= ', type, name, access, url, basic_auth'
+                stmt+= ', basic_auth_user, basic_auth_password, is_default)'
+                stmt+= ' VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+                i = 0
+                isdefault = 1
+                #- 'prometheus,BootStack Prometheus,proxy,http://localhost:9090,,,'
+                for ds in dss:
+                    ds = ds.split(',')
+                    if len(ds) == 7:
+                        i += 1
+                        cur.execute(stmt, i, 1, 0, ds[0], ds[1], ds[2],
+                            ds[3], ds[4], ds[5], ds[6], isdefault)
+                        isdefault = 0
+                if isdefault == 0:
+                    conn.commit()
+        conn.close()
+    except ImportError, e:
+        hookenv.log('Could not update data_source: {}'.format(e))
+
+
+def check_adminuser():
+    """
+    CREATE TABLE `user` (
+    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL
+    , `version` INTEGER NOT NULL
+    , `login` TEXT NOT NULL
+    , `email` TEXT NOT NULL
+    , `name` TEXT NULL
+    , `password` TEXT NULL
+    , `salt` TEXT NULL
+    , `rands` TEXT NULL
+    , `company` TEXT NULL
+    , `org_id` INTEGER NOT NULL
+    , `is_admin` INTEGER NOT NULL
+    , `email_verified` INTEGER NULL
+    , `theme` TEXT NULL
+    , `created` DATETIME NOT NULL
+    , `updated` DATETIME NOT NULL
+    );
+    INSERT INTO "user" VALUES(1,0,'admin','root+bootstack-ps45@canonical.com','BootStack Team','309bc4e78bc60d02dc0371d9e9fa6bf9a809d5dc25c745b9e3f85c3ed49c6feccd4ffc96d1db922f4297663a209e93f7f2b6','LZeJ3nSdrC','hseJcLcnPN','',1,1,0,'light','2016-01-22 12:00:08','2016-01-22 12:02:13');
+    """
+    fetch.apt_install('python-pbkdf2')
+    passwd = hookenv.config()['admin-password']
+    if not passwd:
+        passwd = host.pwgen(16)
+
+    try:
+        import sqlite3
+
+        stmt = "UPDATE user SET (email, name, password, theme)"
+        stmt += " VALUES (?, 'BootStack Team', ?, 'light')"
+        stmt += " WHERE id = ?"
+
+        conn = sqlite3.connect('/var/lib/grafana/grafana.db')
+        cur = conn.cursor()
+        query = cur.execute('SELECT id, login, salt FROM DATA_SOURCE')
+        for row in query.fetchall():
+            if row[1] == 'admin':
+                nagios_context = hookenv.config()['nagios_context']
+                if not nagios_context:
+                    nagios_context = 'UNKNOWN'
+                email = 'root+%s@canonical.com' % nagios_context
+                hpasswd = hpwgen(passwd, row[2])
+                if hpasswd:
+                    cur.execute(stmt, (email, hpasswd, row[0]))
+                    conn.commit()
+                else:
+                    hookenv.log('Could not update user table: hpwgen func failed')
+                break
+        conn.close()
+    except ImportError, e:
+        hookenv.log('Could not update user table: {}'.format(e))
+        return
+
+
+def hpwgen(passwd, salt):
+    try:
+        import pbkdf2, hashlib
+        hpasswd = pbkdf2.PBKDF2(passwd, salt, 10000, hashlib.sha256).hexread(50)
+        return hpasswd
+    except ImportError, e:
+        hookenv.log('Could not generate PBKDF2 hashed password: {}'.format(e))
+        return
