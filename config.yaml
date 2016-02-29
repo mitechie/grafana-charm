@@ -42,3 +42,8 @@ options:
     type: string
     description: |
       Comma separated list of nagios servicegroups for the graphite check
+  admin-password:
+    default:
+    type: string
+    description: |
+      Grafana admin password. Default, pwgen(16) random password
