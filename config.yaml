@@ -42,7 +42,7 @@ options:
     type: string
     description: |
       Comma separated list of nagios servicegroups for the graphite check
-  admin-password:
+  admin_password:
     default:
     type: string
     description: |
