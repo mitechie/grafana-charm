@@ -143,7 +143,8 @@ def check_datasources():
         query = cur.execute('SELECT COUNT(*) FROM DATA_SOURCE')
         rows = query.fetchone()[0]
         if rows == 0:
-            dss = hookenv.config()['datasources']
+            config = hookenv.config()
+            dss = config.get('datasources', [])
             if len(dss) > 0:
                 stmt = 'INSERT INTO DATA_SOURCE (id, org_id, version'
                 stmt+= ', type, name, access, url, basic_auth'
