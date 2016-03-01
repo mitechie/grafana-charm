@@ -1,5 +1,6 @@
 import os
 import glob
+from time import sleep
 from charmhelpers import fetch
 from charmhelpers.core import host, hookenv
 from charmhelpers.core.templating import render
@@ -66,6 +67,7 @@ def check_config():
 
 @only_once
 def db_init():
+    sleep(10)
     check_datasources()
     check_adminuser()
 
