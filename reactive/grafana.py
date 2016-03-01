@@ -196,8 +196,8 @@ def check_adminuser():
     try:
         import sqlite3
 
-        stmt = "UPDATE user SET (email, name, password, theme)"
-        stmt += " VALUES (?, 'BootStack Team', ?, 'light')"
+        stmt = "UPDATE user SET email=?, name='BootStack Team'"
+        stmt += ", password=?, theme='light'"
         stmt += " WHERE id = ?"
 
         conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
