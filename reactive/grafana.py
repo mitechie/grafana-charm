@@ -145,6 +145,7 @@ def check_datasources():
         if rows == 0:
             config = hookenv.config()
             dss = config.get('datasources', [])
+            hookenv.log('datasources on juju set => {}'.format(dss))
             if len(dss) > 0:
                 stmt = 'INSERT INTO DATA_SOURCE (id, org_id, version'
                 stmt+= ', type, name, access, url, basic_auth'
