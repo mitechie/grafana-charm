@@ -136,7 +136,7 @@ def check_datasources():
     """
     try:
         import sqlite3
-        conn = sqlite3.connect('/var/lib/grafana/grafana.db')
+        conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
         cur = conn.cursor()
         query = cur.execute('SELECT COUNT(*) FROM DATA_SOURCE')
         rows = query.fetchone()[0]
@@ -162,6 +162,8 @@ def check_datasources():
         conn.close()
     except ImportError as e:
         hookenv.log('Could not update data_source: {}'.format(e))
+    except sqlite3.OperationalError as e:
+        hookenv.log('check_datasources::sqlite3.OperationError: {}'.format(e))
 
 
 def check_adminuser():
@@ -198,7 +200,7 @@ def check_adminuser():
         stmt += " VALUES (?, 'BootStack Team', ?, 'light')"
         stmt += " WHERE id = ?"
 
-        conn = sqlite3.connect('/var/lib/grafana/grafana.db')
+        conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
         cur = conn.cursor()
         query = cur.execute('SELECT id, login, salt FROM user')
         for row in query.fetchall():
@@ -217,6 +219,9 @@ def check_adminuser():
         conn.close()
     except ImportError as e:
         hookenv.log('Could not update user table: {}'.format(e))
+        return
+    except sqlite3.OperationalError as e:
+        hookenv.log('check_adminuser::sqlite3.OperationError: {}'.format(e))
         return
 
 
