@@ -185,7 +185,7 @@ def check_adminuser():
     );
     INSERT INTO "user" VALUES(1,0,'admin','root+bootstack-ps45@canonical.com','BootStack Team','309bc4e78bc60d02dc0371d9e9fa6bf9a809d5dc25c745b9e3f85c3ed49c6feccd4ffc96d1db922f4297663a209e93f7f2b6','LZeJ3nSdrC','hseJcLcnPN','',1,1,0,'light','2016-01-22 12:00:08','2016-01-22 12:02:13');
     """
-    fetch.apt_install('python-pbkdf2')
+    fetch.apt_install(['python-pbkdf2', 'python3-pbkdf2'])
     config = hookenv.config()
     passwd = config.get('admin_password', False)
     if not passwd:
