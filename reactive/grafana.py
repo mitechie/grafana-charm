@@ -12,20 +12,6 @@ SVCNAME = 'grafana-server'
 GRAFANA_INI = '/etc/grafana/grafana.ini'
 GRAFANA_INI_TMPL = 'grafana.ini.j2'
 
-# when
-#   grafana.started
-#     NO -> install and/or update -> set grafana.start
-#     YES -> config-changed? restart services or else noop
-#
-#   grafana.start (from when_not('grafana.started')
-#     NO ->
-#     YES ->
-#       config-changed? render or noop
-#       service running?
-#         no -> start
-#         yes -> config-changed? -> restart
-#
-
 
 def install_packages():
     config = hookenv.config()
