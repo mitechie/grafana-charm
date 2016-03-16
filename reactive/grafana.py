@@ -159,8 +159,8 @@ def check_datasources():
                     ds = ds.split(',')
                     if len(ds) == 7:
                         i += 1
-                        cur.execute(stmt, i, 1, 0, ds[0], ds[1], ds[2],
-                            ds[3], ds[4], ds[5], ds[6], isdefault)
+                        cur.execute(stmt, (i, 1, 0, ds[0], ds[1], ds[2],
+                            ds[3], ds[4], ds[5], ds[6], isdefault))
                         isdefault = 0
                 if isdefault == 0:
                     conn.commit()
