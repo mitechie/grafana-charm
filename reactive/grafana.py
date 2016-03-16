@@ -138,13 +138,14 @@ def check_datasources():
     """
     try:
         import sqlite3
+        import yaml
         conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
         cur = conn.cursor()
         query = cur.execute('SELECT COUNT(*) FROM DATA_SOURCE')
         rows = query.fetchone()[0]
         if rows == 0:
             config = hookenv.config()
-            dss = config.get('datasources', [])
+            dss = yaml.safe_load(config['datasources'])
             hookenv.log('datasources on juju set => {}'.format(dss))
             if len(dss) > 0:
                 stmt = 'INSERT INTO DATA_SOURCE (id, org_id, version'
@@ -163,6 +164,7 @@ def check_datasources():
                         isdefault = 0
                 if isdefault == 0:
                     conn.commit()
+                    hookenv.log('[*] datasource(s) added to database')
         conn.close()
     except ImportError as e:
         hookenv.log('Could not update data_source: {}'.format(e))
@@ -217,6 +219,7 @@ def check_adminuser():
                 if hpasswd:
                     cur.execute(stmt, (email, hpasswd, row[0]))
                     conn.commit()
+                    hookenv.log('[*] admin password updated on database')
                 else:
                     hookenv.log('Could not update user table: hpwgen func failed')
                 break
