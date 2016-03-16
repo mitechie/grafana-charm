@@ -4,14 +4,24 @@ options:
       - 'deb https://packagecloud.io/grafana/stable/debian/ wheezy main'
     type: string
     description: |
-      Repository from which to install. May be one of the following:
-      distro, ppa:somecustom/ppa or a deb url sources entry (default).
+      YAML list of additional installation sources, as a string. The number of
+      install_sources must match the number of install_keys. For example:
+        install_sources: |
+         - ppa:project1/ppa
+         - ppa:project2/ppa
   install_keys:
     default: |
       - '7AD95B3F'
     type: string
     description: |
-      Repository key from which to install.
+      YAML list of GPG keys for installation sources, as a string. For apt repository
+      URLs, use the public key ID used to verify package signatures. For 
+      other sources such as PPA, use empty string. This list must have the 
+      same number of elements as install_sources, even if the key items are 
+      all empty string. An example to go with the above for install_sources:
+        install_keys: |
+         - ""
+         - ""
   app_mode:
     default: 'production'
     type: string
