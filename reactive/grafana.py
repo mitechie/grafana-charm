@@ -64,7 +64,7 @@ def restart_grafana():
     if not host.service_running(SVCNAME):
         hookenv.log('Starting {}...'.format(SVCNAME))
         host.service_start(SVCNAME)
-    elif any_file_changed(['/etc/grafana/grafana.ini']):
+    elif any_file_changed([GRAFANA_INI]):
         hookenv.log('Restarting {}, config file changed...'.format(SVCNAME))
         host.service_restart(SVCNAME)
     hookenv.status_set('active', 'Ready')
