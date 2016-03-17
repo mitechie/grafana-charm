@@ -151,7 +151,7 @@ def check_datasources():
             if len(dss) > 0:
                 stmt = 'INSERT INTO DATA_SOURCE (id, org_id, version'
                 stmt+= ', type, name, access, url, basic_auth'
-                stmt+= ', basic_auth_user, basic_auth_password, is_default,'
+                stmt+= ', basic_auth_user, basic_auth_password, is_default'
                 stmt+= ', created, updated)'
                 stmt+= ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
                 i = 0
