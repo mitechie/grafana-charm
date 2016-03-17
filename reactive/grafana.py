@@ -202,6 +202,7 @@ def check_adminuser():
     passwd = config.get('admin_password', False)
     if not passwd:
         passwd = host.pwgen(16)
+        config['admin_password'] = passwd
 
     try:
         import sqlite3
