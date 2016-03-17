@@ -61,7 +61,7 @@ def setup_config():
 @when('grafana.started')
 def check_config():
     if data_changed('grafana.config', hookenv.config()):
-        setup_grafana()  # reconfigure and restart
+        setup_config()  # reconfigure and restart
     db_init()
 
 
