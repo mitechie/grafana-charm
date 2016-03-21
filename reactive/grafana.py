@@ -2,67 +2,73 @@ import os
 import glob
 from time import sleep
 from charmhelpers import fetch
-from charmhelpers.core import host, hookenv
+from charmhelpers.core import host, hookenv, unitdata
 from charmhelpers.core.templating import render
 from charmhelpers.contrib.charmsupport import nrpe
-from charms.reactive import when, when_not, set_state, remove_state, only_once
+from charms.reactive import when, when_not, set_state, only_once
 from charms.reactive.helpers import any_file_changed, data_changed
 
-# when
-#   grafana.started
-#     NO -> install and/or update -> set grafana.start
-#     YES -> config-changed? restart services or else noop
-#
-#   grafana.start (from when_not('grafana.started')
-#     NO -> noop
-#     YES ->
-#       config-changed? render or noop
-#       service running?
-#         no -> start
-#         yes -> config-changed? -> restart
-#
+SVCNAME = 'grafana-server'
+GRAFANA_INI = '/etc/grafana/grafana.ini'
+GRAFANA_INI_TMPL = 'grafana.ini.j2'
 
-@when_not('grafana.started')
+
 def install_packages():
+    config = hookenv.config()
+    install_opts = ('install_sources', 'install_keys')
+    if not any(config.changed(opt) for opt in install_opts):
+        return
     hookenv.status_set('maintenance', 'Installing deb pkgs')
     packages = ['grafana']
-    config = hookenv.config()
     fetch.configure_sources(update=True)
     fetch.apt_install(packages)
     hookenv.status_set('maintenance', 'Waiting for start')
-    set_state('grafana.start')
 
 
-@when('grafana.start')
-def setup_config():
+def check_ports(new_port):
+    kv = unitdata.kv()
+    if kv.get('grafana.port') != new_port:
+        hookenv.open_port(new_port)
+        if kv.get('grafana.port'):  # Dont try to close non existing ports
+            hookenv.close_port(kv.get('grafana.port'))
+        kv.set('grafana.port', new_port)
+
+
+@when_not('grafana.started')
+def setup_grafana():
     hookenv.status_set('maintenance', 'Configuring grafana')
-    if data_changed('grafana.config', hookenv.config()):
-        settings = {'config': hookenv.config(),
-                    }
-        render(source='grafana.ini.j2',
-               target='/etc/grafana/grafana.ini',
+    install_packages()
+    config = hookenv.config()
+    if data_changed('grafana.config', config):
+        settings = {'config': config}
+        render(source=GRAFANA_INI_TMPL,
+               target=GRAFANA_INI,
                context=settings,
                owner='root', group='grafana',
                perms=0o640,
                )
-
-    for svc in services():
-        if not host.service_running(svc):
-            hookenv.log('Starting {}...'.format(svc))
-            host.service_start(svc)
-        elif any_file_changed(['/etc/grafana/grafana.ini']):
-            hookenv.log('Restarting {}, config file changed...'.format(svc))
-            host.service_restart(svc)
-    set_state('grafana.started')
-    remove_state('grafana.start')
+    check_ports(config.get('port', '3000'))
+    set_state('grafana.start')
     hookenv.status_set('active', 'Ready')
 
 
 @when('grafana.started')
 def check_config():
     if data_changed('grafana.config', hookenv.config()):
-        setup_config()  # reconfigure and restart
+        setup_grafana()  # reconfigure and restart
     db_init()
+
+
+@when('grafana.start')
+def restart_grafana():
+    if not host.service_running(SVCNAME):
+        hookenv.log('Starting {}...'.format(SVCNAME))
+        host.service_start(SVCNAME)
+    elif any_file_changed([GRAFANA_INI]):
+        hookenv.log('Restarting {}, config file changed...'.format(SVCNAME))
+        host.service_restart(SVCNAME)
+    hookenv.status_set('active', 'Ready')
+    set_state('grafana.started')
 
 
 @only_once
@@ -79,7 +85,7 @@ def update_nrpe_config(svc):
     hostname = nrpe.get_nagios_hostname()
     current_unit = nrpe.get_nagios_unit_name()
     nrpe_setup = nrpe.NRPE(hostname=hostname)
-    nrpe.add_init_service_checks(nrpe_setup, services(), current_unit)
+    nrpe.add_init_service_checks(nrpe_setup, SVCNAME, current_unit)
     nrpe_setup.write()
 
 
@@ -91,13 +97,6 @@ def wipe_nrpe_checks():
         for f in glob.glob(check):
             if os.path.isfile(f):
                 os.unlink(f)
-
-
-def services():
-    """Used on setup_config()
-    """
-    svcs = ['grafana-server']
-    return svcs
 
 
 def validate_datasources():
@@ -150,10 +149,10 @@ def check_datasources():
             hookenv.log('datasources on juju set => {}'.format(dss))
             if len(dss) > 0:
                 stmt = 'INSERT INTO DATA_SOURCE (id, org_id, version'
-                stmt+= ', type, name, access, url, basic_auth'
-                stmt+= ', basic_auth_user, basic_auth_password, is_default'
-                stmt+= ', created, updated)'
-                stmt+= ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                stmt += ', type, name, access, url, basic_auth'
+                stmt += ', basic_auth_user, basic_auth_password, is_default'
+                stmt += ', created, updated)'
+                stmt += ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
                 i = 0
                 isdefault = 1
                 #- 'prometheus,BootStack Prometheus,proxy,http://localhost:9090,,,'
@@ -163,8 +162,8 @@ def check_datasources():
                         i += 1
                         dtime = datetime.datetime.today().strftime("%F %T")
                         cur.execute(stmt, (i, 1, 0, ds[0], ds[1], ds[2],
-                            ds[3], ds[4], ds[5], ds[6], isdefault,
-                            dtime, dtime))
+                                    ds[3], ds[4], ds[5], ds[6], isdefault,
+                                    dtime, dtime))
                         isdefault = 0
                 if isdefault == 0:
                     conn.commit()
@@ -239,7 +238,8 @@ def check_adminuser():
 
 def hpwgen(passwd, salt):
     try:
-        import pbkdf2, hashlib
+        import pbkdf2
+        import hashlib
         hpasswd = pbkdf2.PBKDF2(passwd, salt, 10000, hashlib.sha256).hexread(50)
         return hpasswd
     except ImportError as e:
