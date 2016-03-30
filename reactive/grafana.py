@@ -56,7 +56,7 @@ def setup_grafana():
 def check_config():
     if data_changed('grafana.config', hookenv.config()):
         setup_grafana()  # reconfigure and restart
-    #db_init()
+    db_init()
 
 
 @when('grafana.start')
@@ -138,6 +138,7 @@ def check_datasources():
     try:
         import sqlite3
         import yaml
+        import datetime
         conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
         cur = conn.cursor()
         query = cur.execute('SELECT COUNT(*) FROM DATA_SOURCE')
@@ -149,8 +150,9 @@ def check_datasources():
             if len(dss) > 0:
                 stmt = 'INSERT INTO DATA_SOURCE (id, org_id, version'
                 stmt += ', type, name, access, url, basic_auth'
-                stmt += ', basic_auth_user, basic_auth_password, is_default)'
-                stmt += ' VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+                stmt += ', basic_auth_user, basic_auth_password, is_default'
+                stmt += ', created, updated)'
+                stmt += ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
                 i = 0
                 isdefault = 1
                 #- 'prometheus,BootStack Prometheus,proxy,http://localhost:9090,,,'
@@ -158,8 +160,10 @@ def check_datasources():
                     ds = ds.split(',')
                     if len(ds) == 7:
                         i += 1
+                        dtime = datetime.datetime.today().strftime("%F %T")
                         cur.execute(stmt, (i, 1, 0, ds[0], ds[1], ds[2],
-                                    ds[3], ds[4], ds[5], ds[6], isdefault))
+                                    ds[3], ds[4], ds[5], ds[6], isdefault,
+                                    dtime, dtime))
                         isdefault = 0
                 if isdefault == 0:
                     conn.commit()
@@ -197,6 +201,7 @@ def check_adminuser():
     passwd = config.get('admin_password', False)
     if not passwd:
         passwd = host.pwgen(16)
+        config['admin_password'] = passwd
 
     try:
         import sqlite3
