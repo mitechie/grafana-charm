@@ -12,3 +12,6 @@ provides:
   nrpe-external-master:
     interface: nrpe-external-master
     scope: container
+requires:
+  grafana-source:
+    interface: grafana-source

@@ -1,2 +1,2 @@
-includes: ['layer:basic', 'interface:nrpe-external-master']
+includes: ['layer:basic', 'interface:nrpe-external-master', 'interface:grafana-source']
 ignore: ['.*.swp' ]

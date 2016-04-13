@@ -99,6 +99,31 @@ def wipe_nrpe_checks():
                 os.unlink(f)
 
 
+@when('grafana.started')
+@when('grafana-source.available')
+def configure_sources(relation):
+    sources = relation.datasources()
+    if not data_changed('grafana.sources', sources):
+        return
+    for ds in sources:
+        # TODO actually configure data sources
+        # ds will be similar to:
+        # {'service_name': 'prometheus',
+        #  'url': 'http://10.0.3.216:9090',
+        #  'description': 'Juju generated source',
+        #  'type': 'prometheus'
+        # }
+        hookenv.log('Found datasource: {}'.format(str(ds)))
+
+
+@when('grafana.started')
+@when_not('grafana-source.available')
+def sources_gone():
+    # Last datasource gone, remove as needed
+    # TODO implementation
+    pass
+
+
 def validate_datasources():
     """Unused. Check datasource before loading it into DB.
     """
