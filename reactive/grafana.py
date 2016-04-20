@@ -1,5 +1,8 @@
+import six
 import os
 import glob
+import hashlib
+import datetime
 from time import sleep
 from charmhelpers import fetch
 from charmhelpers.core import host, hookenv, unitdata
@@ -7,6 +10,21 @@ from charmhelpers.core.templating import render
 from charmhelpers.contrib.charmsupport import nrpe
 from charms.reactive import when, when_not, set_state, only_once
 from charms.reactive.helpers import any_file_changed, data_changed
+
+
+try:
+    import sqlite3
+except ImportError:
+    fetch.apt_install(['python-sqlite'])
+    import sqlite3
+
+try:
+    import pbkdf2
+except ImportError:
+    if six.PY3:
+        fetch.apt_install(['python3-pbkdf2'])
+    else:
+        fetch.apt_install(['python-pbkdf2'])
 
 SVCNAME = 'grafana-server'
 GRAFANA_INI = '/etc/grafana/grafana.ini'
@@ -74,7 +92,6 @@ def restart_grafana():
 @only_once
 def db_init():
     sleep(10)
-    check_datasources()
     check_adminuser()
 
 
@@ -104,16 +121,12 @@ def wipe_nrpe_checks():
 def configure_sources(relation):
     sources = relation.datasources()
     if not data_changed('grafana.sources', sources):
-        return
+        #return
+        pass
     for ds in sources:
-        # TODO actually configure data sources
-        # ds will be similar to:
-        # {'service_name': 'prometheus',
-        #  'url': 'http://10.0.3.216:9090',
-        #  'description': 'Juju generated source',
-        #  'type': 'prometheus'
-        # }
         hookenv.log('Found datasource: {}'.format(str(ds)))
+        # Ensure datasource is configured
+        check_datasource(ds)
 
 
 @when('grafana.started')
@@ -137,7 +150,7 @@ def validate_datasources():
             return False
 
 
-def check_datasources():
+def check_datasource(ds):
     """
     CREATE TABLE `data_source` (
     `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL
@@ -160,44 +173,72 @@ def check_datasources():
     , `with_credentials` INTEGER NOT NULL DEFAULT 0);
     INSERT INTO "data_source" VALUES(1,1,0,'prometheus','BootStack Prometheus','proxy','http://localhost:9090','','','',0,'','',1,'{}','2016-01-22 12:11:06','2016-01-22 12:11:11',0);
     """
-    try:
-        import sqlite3
-        import yaml
-        import datetime
-        conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
-        cur = conn.cursor()
-        query = cur.execute('SELECT COUNT(*) FROM DATA_SOURCE')
-        rows = query.fetchone()[0]
-        if rows == 0:
-            config = hookenv.config()
-            dss = yaml.safe_load(config['datasources'])
-            hookenv.log('datasources on juju set => {}'.format(dss))
-            if len(dss) > 0:
-                stmt = 'INSERT INTO DATA_SOURCE (id, org_id, version'
-                stmt += ', type, name, access, url, basic_auth'
-                stmt += ', basic_auth_user, basic_auth_password, is_default'
-                stmt += ', created, updated)'
-                stmt += ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'
-                i = 0
-                isdefault = 1
-                #- 'prometheus,BootStack Prometheus,proxy,http://localhost:9090,,,'
-                for ds in dss:
-                    ds = ds.split(',')
-                    if len(ds) == 7:
-                        i += 1
-                        dtime = datetime.datetime.today().strftime("%F %T")
-                        cur.execute(stmt, (i, 1, 0, ds[0], ds[1], ds[2],
-                                    ds[3], ds[4], ds[5], ds[6], isdefault,
-                                    dtime, dtime))
-                        isdefault = 0
-                if isdefault == 0:
-                    conn.commit()
-                    hookenv.log('[*] datasource(s) added to database')
-        conn.close()
-    except ImportError as e:
-        hookenv.log('Could not update data_source: {}'.format(e))
-    except sqlite3.OperationalError as e:
-        hookenv.log('check_datasources::sqlite3.OperationError: {}'.format(e))
+
+    # TODO actually configure data sources
+    # ds will be similar to:
+    # {'service_name': 'prometheus',
+    #  'url': 'http://10.0.3.216:9090',
+    #  'description': 'Juju generated source',
+    #  'type': 'prometheus',
+    #  'username': 'username,
+    #  'password': 'password
+    # }
+
+    conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
+    cur = conn.cursor()
+    query = cur.execute('SELECT id, type, name, url, is_default FROM DATA_SOURCE')
+    rows = query.fetchall()
+    ds_name = '{} - {}'.format(ds['service_name'], ds['description'])
+    print(ds_name)
+    print(rows)
+    for row in rows:
+        if (row[1] == ds['type'] and row[2] == ds_name and row[3] == ds['url']):
+            hookenv.log('Datasource already exist, updating: {}'.format(ds_name))
+            stmt, values = generate_query(ds, row[4], row[0])
+            print(stmt, values)
+            cur.execute(stmt, values)
+            conn.commit()
+            conn.close()
+            return
+    hookenv.log('Adding new datasource: {}'.format(ds_name))
+    stmt, values = generate_query(ds, 0)
+    print(stmt, values)
+    cur.execute(stmt, values)
+    conn.commit()
+    conn.close()
+
+
+def generate_query(ds, is_default, id=None):
+    if not id:
+        stmt = 'INSERT INTO DATA_SOURCE (org_id, version, type, name'
+        stmt += ',access, url, is_default, created, updated, basic_auth'
+        if 'username' in ds and 'password' in ds:
+            stmt += ', basic_auth_user, basic_auth_password)'
+            stmt += ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+        else:
+            stmt += ') VALUES (?,?,?,?,?,?,?,?,?,?)'
+        dtime = datetime.datetime.today().strftime("%F %T")
+        values = (1,
+                  0,
+                  ds['type'],
+                  '{} - {}'.format(ds['service_name'], ds['description']),
+                  'proxy',
+                  ds['url'],
+                  is_default,
+                  dtime,
+                  dtime)
+        if 'username' in ds and 'password' in ds:
+            values = values + (1, ds['username'], ds['password'])
+        else:
+            values = values + (0,)
+    else:
+        if 'username' in ds and 'password' in ds:
+            stmt = 'UPDATE DATA_SOURCE SET basic_auth_user = ?, basic_auth_password = ?, basic_auth = 1'
+            values = (ds['username'], ds['password'])
+        else:
+            stmt = 'UPDATE DATA_SOURCE SET basic_auth_user = ?, basic_auth_password = ?, basic_auth = 0'
+            values = ('', '')
+    return (stmt, values)
 
 
 def check_adminuser():
@@ -221,7 +262,6 @@ def check_adminuser():
     );
     INSERT INTO "user" VALUES(1,0,'admin','root+bootstack-ps45@canonical.com','BootStack Team','309bc4e78bc60d02dc0371d9e9fa6bf9a809d5dc25c745b9e3f85c3ed49c6feccd4ffc96d1db922f4297663a209e93f7f2b6','LZeJ3nSdrC','hseJcLcnPN','',1,1,0,'light','2016-01-22 12:00:08','2016-01-22 12:02:13');
     """
-    fetch.apt_install(['python-pbkdf2', 'python3-pbkdf2'])
     config = hookenv.config()
     passwd = config.get('admin_password', False)
     if not passwd:
@@ -229,8 +269,6 @@ def check_adminuser():
         config['admin_password'] = passwd
 
     try:
-        import sqlite3
-
         stmt = "UPDATE user SET email=?, name='BootStack Team'"
         stmt += ", password=?, theme='light'"
         stmt += " WHERE id = ?"
@@ -253,20 +291,11 @@ def check_adminuser():
                     hookenv.log('Could not update user table: hpwgen func failed')
                 break
         conn.close()
-    except ImportError as e:
-        hookenv.log('Could not update user table: {}'.format(e))
-        return
     except sqlite3.OperationalError as e:
         hookenv.log('check_adminuser::sqlite3.OperationError: {}'.format(e))
         return
 
 
 def hpwgen(passwd, salt):
-    try:
-        import pbkdf2
-        import hashlib
-        hpasswd = pbkdf2.PBKDF2(passwd, salt, 10000, hashlib.sha256).hexread(50)
-        return hpasswd
-    except ImportError as e:
-        hookenv.log('Could not generate PBKDF2 hashed password: {}'.format(e))
-        return
+    hpasswd = pbkdf2.PBKDF2(passwd, salt, 10000, hashlib.sha256).hexread(50)
+    return hpasswd
