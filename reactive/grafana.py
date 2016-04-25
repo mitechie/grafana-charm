@@ -121,8 +121,7 @@ def wipe_nrpe_checks():
 def configure_sources(relation):
     sources = relation.datasources()
     if not data_changed('grafana.sources', sources):
-        #return
-        pass
+        return
     for ds in sources:
         hookenv.log('Found datasource: {}'.format(str(ds)))
         # Ensure datasource is configured
@@ -138,7 +137,9 @@ def sources_gone():
 
 
 def validate_datasources():
-    """Unused. Check datasource before loading it into DB.
+    """TODO: make sure datasources option is merged with
+    relation data
+    TODO: make sure datasources are validated
     """
     config = hookenv.config()
 
@@ -174,7 +175,6 @@ def check_datasource(ds):
     INSERT INTO "data_source" VALUES(1,1,0,'prometheus','BootStack Prometheus','proxy','http://localhost:9090','','','',0,'','',1,'{}','2016-01-22 12:11:06','2016-01-22 12:11:11',0);
     """
 
-    # TODO actually configure data sources
     # ds will be similar to:
     # {'service_name': 'prometheus',
     #  'url': 'http://10.0.3.216:9090',
@@ -210,11 +210,11 @@ def check_datasource(ds):
 
 def generate_query(ds, is_default, id=None):
     if not id:
-        stmt = 'INSERT INTO DATA_SOURCE (org_id, version, type, name'
-        stmt += ',access, url, is_default, created, updated, basic_auth'
+        stmt = 'INSERT INTO DATA_SOURCE (org_id, version, type, name' + \
+               ', access, url, is_default, created, updated, basic_auth'
         if 'username' in ds and 'password' in ds:
-            stmt += ', basic_auth_user, basic_auth_password)'
-            stmt += ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+            stmt += ', basic_auth_user, basic_auth_password)' + \
+                    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
         else:
             stmt += ') VALUES (?,?,?,?,?,?,?,?,?,?)'
         dtime = datetime.datetime.today().strftime("%F %T")
@@ -266,6 +266,8 @@ def check_adminuser():
     passwd = config.get('admin_password', False)
     if not passwd:
         passwd = host.pwgen(16)
+        # TODO: Allow users to retrieve password, possibly using an action
+        # Below does not make the password visible in juju get output
         config['admin_password'] = passwd
 
     try:
