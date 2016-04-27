@@ -1,4 +1,4 @@
-name: bootstack-grafana
+name: grafana
 summary: Graph and Dashboard builder
 maintainer: Alvaro Uria <alvaro.uria@canonical.com>
 description: |
