@@ -3,6 +3,8 @@ import os
 import glob
 import hashlib
 import datetime
+import requests
+import subprocess
 from time import sleep
 from charmhelpers import fetch
 from charmhelpers.core import host, hookenv, unitdata
@@ -30,17 +32,26 @@ except ImportError:
 SVCNAME = 'grafana-server'
 GRAFANA_INI = '/etc/grafana/grafana.ini'
 GRAFANA_INI_TMPL = 'grafana.ini.j2'
+GRAFANA_DEPS = ['libfontconfig1']
 
 
 def install_packages():
     config = hookenv.config()
     install_opts = ('install_sources', 'install_keys')
-    if not any(config.changed(opt) for opt in install_opts):
-        return
-    hookenv.status_set('maintenance', 'Installing deb pkgs')
-    packages = ['grafana']
-    fetch.configure_sources(update=True)
-    fetch.apt_install(packages)
+    if config.changed('install_file'):
+        hookenv.status_set('maintenance', 'Installing deb pkgs')
+        fetch.apt_install(GRAFANA_DEPS)
+        pkg_file = '/tmp/grafana.deb'
+        with open(pkg_file, 'wb') as f:
+            r = requests.get(config.get('install_file'), stream=True)
+            for block in r.iter_content(1024):
+                f.write(block)
+        subprocess.check_call(['dpkg', '-i', pkg_file])
+    elif any(config.changed(opt) for opt in install_opts):
+        hookenv.status_set('maintenance', 'Installing deb pkgs')
+        packages = ['grafana']
+        fetch.configure_sources(update=True)
+        fetch.apt_install(packages)
     hookenv.status_set('maintenance', 'Waiting for start')
 
 
