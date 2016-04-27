@@ -22,13 +22,22 @@ options:
         install_keys: |
          - ""
          - ""
+  install_file:
+    default: ""
+    type: string
+    description: |
+      Location where grafana .deb file can be found. If set install_sources and
+      install_keys options are ignored. Example:
+        install_file: http://my.company.com/packages/grafana/grafana_3.0.0_amd64.deb
   app_mode:
     default: 'production'
     type: string
     description: 'production or development'
   datasources:
-    default: |
-      - 'prometheus,BootStack Prometheus,proxy,http://localhost:9090,,,'
+    default: ""
+    description: |
+      List of datasources in format:
+        - 'prometheus,BootStack Prometheus,proxy,http://localhost:9090,,,'
     type: string
     description: |
       - type,name,access,url,password,user,database
