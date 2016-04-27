@@ -25,6 +25,7 @@ except ImportError:
         fetch.apt_install(['python3-pbkdf2'])
     else:
         fetch.apt_install(['python-pbkdf2'])
+    import pbkdf2
 
 SVCNAME = 'grafana-server'
 GRAFANA_INI = '/etc/grafana/grafana.ini'
