@@ -67,7 +67,7 @@ options:
     description: |
         The port grafana will expose web services on.
   admin_password:
-    default:
+    default: ""
     type: string
     description: |
       Grafana admin password. Default, pwgen(16) random password
