@@ -77,7 +77,7 @@ def setup_grafana():
                owner='root', group='grafana',
                perms=0o640,
                )
-    check_ports(config.get('port', '3000'))
+    check_ports(config.get('port'))
     set_state('grafana.start')
     hookenv.status_set('active', 'Ready')
 
@@ -146,6 +146,11 @@ def sources_gone():
     # Last datasource gone, remove as needed
     # TODO implementation
     pass
+
+
+@when('website.available')
+def configure_website(website):
+    website.configure(port=hookenv.config('port'))
 
 
 def validate_datasources():

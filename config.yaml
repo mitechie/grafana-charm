@@ -61,8 +61,13 @@ options:
     type: string
     description: |
       Comma separated list of nagios servicegroups for the graphite check
+  port:
+    type: string
+    default: "3000"
+    description: |
+        The port grafana will expose web services on.
   admin_password:
-    default:
+    default: ""
     type: string
     description: |
       Grafana admin password. Default, pwgen(16) random password
