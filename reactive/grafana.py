@@ -38,7 +38,7 @@ GRAFANA_DEPS = ['libfontconfig1']
 def install_packages():
     config = hookenv.config()
     install_opts = ('install_sources', 'install_keys')
-    if config.changed('install_file'):
+    if config.changed('install_file') and config.get('install_file', False):
         hookenv.status_set('maintenance', 'Installing deb pkgs')
         fetch.apt_install(GRAFANA_DEPS)
         pkg_file = '/tmp/grafana.deb'
@@ -283,9 +283,8 @@ def check_adminuser():
     passwd = config.get('admin_password', False)
     if not passwd:
         passwd = host.pwgen(16)
-        # TODO: Allow users to retrieve password, possibly using an action
-        # Below does not make the password visible in juju get output
-        config['admin_password'] = passwd
+        kv = unitdata.kv()
+        kv.set('grafana.admin_password', passwd)
 
     try:
         stmt = "UPDATE user SET email=?, name='BootStack Team'"
