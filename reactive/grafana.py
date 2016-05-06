@@ -69,14 +69,13 @@ def setup_grafana():
     hookenv.status_set('maintenance', 'Configuring grafana')
     install_packages()
     config = hookenv.config()
-    if data_changed('grafana.config', config):
-        settings = {'config': config}
-        render(source=GRAFANA_INI_TMPL,
-               target=GRAFANA_INI,
-               context=settings,
-               owner='root', group='grafana',
-               perms=0o640,
-               )
+    settings = {'config': config}
+    render(source=GRAFANA_INI_TMPL,
+           target=GRAFANA_INI,
+           context=settings,
+           owner='root', group='grafana',
+           perms=0o640,
+           )
     check_ports(config.get('port'))
     set_state('grafana.start')
     hookenv.status_set('active', 'Ready')

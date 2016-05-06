@@ -124,18 +124,17 @@ allow_sign_up = false
 #################################### Anonymous Auth ##########################
 [auth.anonymous]
 # enable anonymous access
-{% if anonymous -%}
+{% if config['anonymous'] -%}
 enabled = true
 
 # specify role for unauthenticated users
-org_role = {{ anonymous_role }}
+org_role = {{ config['anonymous_role'] }}
 {% else -%}
 ;enabled = false
 
 # specify role for unauthenticated users
 ;org_role = Viewer
-{% endif -%}
-
+{% endif %}
 # specify organization name that should be used for unauthenticated users
 ;org_name = Main Org.
 
