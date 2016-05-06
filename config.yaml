@@ -33,6 +33,14 @@ options:
     default: 'production'
     type: string
     description: 'production or development'
+  anonymous:
+    default: False
+    type: boolean
+    description: Whether to allow anonymous users, defaults to False.
+  anonymous_role:
+    default: 'Viewer'
+    type: string
+    description: The role given to anonymous users if enabled.
   datasources:
     default: ""
     description: |
