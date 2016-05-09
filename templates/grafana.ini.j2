@@ -124,13 +124,19 @@ allow_sign_up = false
 #################################### Anonymous Auth ##########################
 [auth.anonymous]
 # enable anonymous access
-;enabled = false
+{% if config['anonymous'] -%}
+enabled = true
 
-# specify organization name that should be used for unauthenticated users
-;org_name = Main Org.
+# specify role for unauthenticated users
+org_role = {{ config['anonymous_role'] }}
+{% else -%}
+;enabled = false
 
 # specify role for unauthenticated users
 ;org_role = Viewer
+{% endif %}
+# specify organization name that should be used for unauthenticated users
+;org_name = Main Org.
 
 #################################### Github Auth ##########################
 [auth.github]
