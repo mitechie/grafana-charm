@@ -78,4 +78,16 @@ options:
     default: ""
     type: string
     description: |
-      Grafana admin password. Default, pwgen(16) random password
+      Grafana admin password. Default, pwgen(16) random password.
+      See also README.md for instructions how to retrieve automatically
+      generated password
+  dashboards_backup_schedule:
+    default: ""
+    type: string
+    description: |
+      Cron schedule for dashboards backups
+  dashboards_backup_dir:
+    default: "/srv/backups"
+    type: string
+    description: |
+      Location where to put dashboard dumps

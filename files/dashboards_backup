@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+
+import os
+import argparse
+import requests
+import string
+import datetime
+
+
+def get_backup_filename(directory, org_name, uri):
+    valid_chars = '-_(){}{}'.format(string.ascii_letters, string.digits)
+    dashboard = uri.split('/')[1]
+    filename = ''.join(c if c in valid_chars else '_' for c in dashboard)
+    filename += '.json.' + datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    org_name = ''.join(c if c in valid_chars else '_' for c in org_name)
+    return os.path.join(directory, org_name, filename)
+
+
+def main(args):
+    base_url = 'http://localhost:3000/api/'
+    for key in args.api_keys:
+        headers = {'Authorization': 'Bearer {}'.format(key)}
+        org_name = requests.get(base_url+'org', headers=headers).json()['name']
+        r = requests.get(base_url+'search', headers=headers).json()
+        uris = [i['uri'] for i in r]
+        for d in uris:
+            backup_file = get_backup_filename(args.directory, org_name, d)
+            if not os.path.isdir(os.path.dirname(backup_file)):
+                os.mkdir(os.path.dirname(backup_file))
+            dashboard = requests.get(base_url+'dashboards/'+d, headers=headers).json()['dashboard']
+            with open(backup_file, 'w') as f:
+                f.write(str(dashboard))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Back up grafana dashboards to disk')
+    parser.add_argument('-d', '--directory', help='Directory where to store backups',
+                        default='/srv/backups')
+    parser.add_argument('api_keys', help='List of API keys to use for backups', nargs='+')
+    args = parser.parse_args()
+    main(args)
