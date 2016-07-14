@@ -4,7 +4,9 @@ import glob
 import hashlib
 import datetime
 import requests
+import json
 import subprocess
+import base64
 from time import sleep
 from charmhelpers import fetch
 from charmhelpers.core import host, hookenv, unitdata
@@ -33,6 +35,8 @@ SVCNAME = 'grafana-server'
 GRAFANA_INI = '/etc/grafana/grafana.ini'
 GRAFANA_INI_TMPL = 'grafana.ini.j2'
 GRAFANA_DEPS = ['libfontconfig1']
+DASHBOARDS_BACKUP_CRON = '/etc/cron.d/juju-dashboards-backup'
+DASHBOARDS_BACKUP_CRON_TMPL = 'juju-dashboards-backup.j2'
 
 
 def install_packages():
@@ -64,6 +68,57 @@ def check_ports(new_port):
         kv.set('grafana.port', new_port)
 
 
+def select_query(query, params=None):
+    conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
+    cur = conn.cursor()
+    if params:
+        return cur.execute(query, params).fetchall()
+    else:
+        return cur.execute(query).fetchall()
+
+
+def insert_query(query, params=None):
+    conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
+    cur = conn.cursor()
+    if params:
+        cur.execute(query, params)
+    else:
+        cur.execute(query)
+    conn.commit()
+
+
+def add_backup_api_keys():
+    name = 'juju-dashboards-backup'
+    passwd = host.pwgen(32)
+    hpasswd = hpwgen(passwd, name)
+    hookenv.log('Adding backup API keys for all organizations...')
+    for i in select_query('SELECT id FROM org'):
+        org_id = i[0]
+        if select_query('SELECT id FROM api_key WHERE org_id=? AND name=?', [org_id, name]):
+            hookenv.log('API key {} in org {} already exists, skipping'.format(name, org_id))
+            continue
+        j = {'n':  name,
+             'k':  passwd,
+             'id': org_id}
+        encoded = base64.b64encode(json.dumps(j).encode('ascii')).decode('ascii')
+        stmt = 'INSERT INTO api_key (org_id, name, key, role, created, updated)' + \
+               ' VALUES (?,?,?,"Viewer",?,?)'
+        dtime = datetime.datetime.today().strftime("%F %T")
+        params = [org_id, name, hpasswd, dtime, dtime]
+        insert_query(stmt, params)
+
+        kv = unitdata.kv()
+        backup_keys = kv.get('grafana.dashboards_backup_keys', False)
+        if not backup_keys:
+            backup_keys = [encoded]
+        else:
+            backup_keys.append(encoded)
+        kv.set('grafana.dashboards_backup_keys', backup_keys)
+
+    kv = unitdata.kv()
+    return kv.get('grafana.dashboards_backup_keys')
+
+
 @when_not('grafana.started')
 def setup_grafana():
     hookenv.status_set('maintenance', 'Configuring grafana')
@@ -76,6 +131,20 @@ def setup_grafana():
            owner='root', group='grafana',
            perms=0o640,
            )
+    if config.get('dashboards_backup_schedule', False):
+        hookenv.log('Setting up dashboards backup job...')
+        host.rsync('files/dashboards_backup', '/usr/local/bin/dashboards_backup')
+        host.mkdir(config.get('dashboards_backup_dir'))
+        settings = {'schedule': config.get('dashboards_backup_schedule'),
+                    'directory': config.get('dashboards_backup_dir'),
+                    'backup_keys': ' '.join(add_backup_api_keys())}
+        render(source=DASHBOARDS_BACKUP_CRON_TMPL,
+               target=DASHBOARDS_BACKUP_CRON,
+               context=settings,
+               owner='root', group='root',
+               perms=0o640,
+               )
+        # copy script, create cronjob, ensure directory exists
     check_ports(config.get('port'))
     set_state('grafana.start')
     hookenv.status_set('active', 'Ready')
