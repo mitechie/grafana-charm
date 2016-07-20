@@ -1,6 +1,6 @@
 #Overview
 
-This charm provides the stable version of Grafana.
+This charm provides the latest stable version of Grafana.
 
 #Usage
 
