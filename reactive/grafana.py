@@ -201,7 +201,8 @@ def restart_grafana():
     hookenv.status_set('active', 'Started {}'.format(SVCNAME))
 
 
-# @when('grafana.started')   XXX: needed?
+# XXX: this will probably be needed eventually to ensure that the service check doesn't cause CI failures:
+# @when('grafana.started')
 @when('nrpe-external-master.available')
 def update_nrpe_config(svc):
     # python-dbus is used by check_upstart_job
