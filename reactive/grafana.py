@@ -11,7 +11,7 @@ from charmhelpers import fetch
 from charmhelpers.core import host, hookenv, unitdata
 from charmhelpers.core.templating import render
 from charmhelpers.contrib.charmsupport import nrpe
-from charms.reactive import when, when_not, remove_state, set_state
+from charms.reactive import hook, remove_state, set_state, when, when_not
 from charms.reactive.helpers import any_file_changed, data_changed
 
 
@@ -59,6 +59,13 @@ def install_packages():
         fetch.apt_install(packages)
     set_state('grafana.installed')
     hookenv.status_set('active', 'Completed installing grafana')
+
+
+@hook('upgrade-charm')
+def upgrade_charm():
+    hookenv.status_set('maintenance', 'Forcing package update and reconfiguration on upgrade-charm')
+    remove_state('grafana.installed')
+    remove_state('grafana.configured')
 
 
 def check_ports(new_port):
