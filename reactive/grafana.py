@@ -7,12 +7,11 @@ import requests
 import json
 import subprocess
 import base64
-from time import sleep
 from charmhelpers import fetch
 from charmhelpers.core import host, hookenv, unitdata
 from charmhelpers.core.templating import render
 from charmhelpers.contrib.charmsupport import nrpe
-from charms.reactive import when, when_not, set_state, only_once
+from charms.reactive import when, when_not, remove_state, set_state
 from charms.reactive.helpers import any_file_changed, data_changed
 
 
@@ -39,9 +38,11 @@ DASHBOARDS_BACKUP_CRON = '/etc/cron.d/juju-dashboards-backup'
 DASHBOARDS_BACKUP_CRON_TMPL = 'juju-dashboards-backup.j2'
 
 
+@when_not('grafana.installed')
 def install_packages():
     config = hookenv.config()
     install_opts = ('install_sources', 'install_keys')
+    hookenv.status_set('maintenance', 'Installing grafana')
     if config.changed('install_file') and config.get('install_file', False):
         hookenv.status_set('maintenance', 'Installing deb pkgs')
         fetch.apt_install(GRAFANA_DEPS)
@@ -56,7 +57,8 @@ def install_packages():
         packages = ['grafana']
         fetch.configure_sources(update=True)
         fetch.apt_install(packages)
-    hookenv.status_set('maintenance', 'Waiting for start')
+    set_state('grafana.installed')
+    hookenv.status_set('active', 'Completed installing grafana')
 
 
 def check_ports(new_port):
@@ -97,8 +99,8 @@ def add_backup_api_keys():
         if select_query('SELECT id FROM api_key WHERE org_id=? AND name=?', [org_id, name]):
             hookenv.log('API key {} in org {} already exists, skipping'.format(name, org_id))
             continue
-        j = {'n':  name,
-             'k':  passwd,
+        j = {'n': name,
+             'k': passwd,
              'id': org_id}
         encoded = base64.b64encode(json.dumps(j).encode('ascii')).decode('ascii')
         stmt = 'INSERT INTO api_key (org_id, name, key, role, created, updated)' + \
@@ -119,10 +121,10 @@ def add_backup_api_keys():
     return kv.get('grafana.dashboards_backup_keys')
 
 
-@when_not('grafana.started')
+@when('grafana.installed')
+@when_not('grafana.configured')
 def setup_grafana():
     hookenv.status_set('maintenance', 'Configuring grafana')
-    install_packages()
     config = hookenv.config()
     settings = {'config': config}
     render(source=GRAFANA_INI_TMPL,
@@ -146,35 +148,30 @@ def setup_grafana():
                )
         # copy script, create cronjob, ensure directory exists
     check_ports(config.get('port'))
-    set_state('grafana.start')
-    hookenv.status_set('active', 'Ready')
+    set_state('grafana.configured')
+    remove_state('grafana.started')
+    hookenv.status_set('active', 'Completed configuring grafana')
 
 
-@when('grafana.started')
-def check_config():
-    if data_changed('grafana.config', hookenv.config()):
-        setup_grafana()  # reconfigure and restart
-    db_init()
-
-
-@when('grafana.start')
+@when('grafana.configured')
+@when_not('grafana.started')
 def restart_grafana():
     if not host.service_running(SVCNAME):
-        hookenv.log('Starting {}...'.format(SVCNAME))
+        msg = 'Starting {}'.format(SVCNAME)
+        hookenv.status_set('maintenance', msg)
+        hookenv.log(msg)
         host.service_start(SVCNAME)
     elif any_file_changed([GRAFANA_INI]):
-        hookenv.log('Restarting {}, config file changed...'.format(SVCNAME))
+        msg = 'Restarting {}'.format(SVCNAME)
+        hookenv.log(msg)
+        hookenv.status_set('maintenance', msg)
         host.service_restart(SVCNAME)
     hookenv.status_set('active', 'Ready')
     set_state('grafana.started')
+    hookenv.status_set('active', 'Started {}'.format(SVCNAME))
 
 
-@only_once
-def db_init():
-    sleep(10)
-    check_adminuser()
-
-
+# @when('grafana.started')   XXX: maybe needed?
 @when('nrpe-external-master.available')
 def update_nrpe_config(svc):
     # python-dbus is used by check_upstart_job
@@ -326,6 +323,8 @@ def generate_query(ds, is_default, id=None):
     return (stmt, values)
 
 
+@when('grafana.started')
+@when_not('grafana.adminuser.added')
 def check_adminuser():
     """
     CREATE TABLE `user` (
@@ -380,6 +379,7 @@ def check_adminuser():
     except sqlite3.OperationalError as e:
         hookenv.log('check_adminuser::sqlite3.OperationError: {}'.format(e))
         return
+    set_state('grafana.adminuser.added')
 
 
 def hpwgen(passwd, salt):
