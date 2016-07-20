@@ -68,6 +68,16 @@ def upgrade_charm():
     remove_state('grafana.configured')
 
 
+@hook('config.changed')
+def config_changed():
+    remove_state('grafana.configured')
+    config = hookenv.config()
+    if config.changed('dashboards_backup_schedule') or config.changed('dashboards_backup_dir'):
+        remove_state('grafana.backup.configured')
+    if config.changed('admin_password') or config.changed('nagios_context'):
+        remove_state('grafana.admin_password.set')
+
+
 def check_ports(new_port):
     kv = unitdata.kv()
     if kv.get('grafana.port') != new_port:
@@ -140,7 +150,23 @@ def setup_grafana():
            owner='root', group='grafana',
            perms=0o640,
            )
+    check_ports(config.get('port'))
+    set_state('grafana.configured')
+    remove_state('grafana.started')
+    hookenv.status_set('active', 'Completed configuring grafana')
+
+
+@when('grafana.started')
+@when_not('grafana.backup.configured')
+def setup_backup_shedule():
+    # copy script, create cronjob, ensure directory exists
+
+    # XXX: If you add any dependencies on config items here,
+    #      be sure to update config_changed() accordingly!
+
+    config = hookenv.config()
     if config.get('dashboards_backup_schedule', False):
+        hookenv.status_set('maintenance', 'Configuring grafana dashboard backup')
         hookenv.log('Setting up dashboards backup job...')
         host.rsync('files/dashboards_backup', '/usr/local/bin/dashboards_backup')
         host.mkdir(config.get('dashboards_backup_dir'))
@@ -153,11 +179,8 @@ def setup_grafana():
                owner='root', group='root',
                perms=0o640,
                )
-        # copy script, create cronjob, ensure directory exists
-    check_ports(config.get('port'))
-    set_state('grafana.configured')
-    remove_state('grafana.started')
-    hookenv.status_set('active', 'Completed configuring grafana')
+        hookenv.status_set('active', 'Completed configuring grafana dashboard backup')
+    set_state('grafana.backup.configured')
 
 
 @when('grafana.configured')
@@ -178,7 +201,7 @@ def restart_grafana():
     hookenv.status_set('active', 'Started {}'.format(SVCNAME))
 
 
-# @when('grafana.started')   XXX: maybe needed?
+# @when('grafana.started')   XXX: needed?
 @when('nrpe-external-master.available')
 def update_nrpe_config(svc):
     # python-dbus is used by check_upstart_job
@@ -331,7 +354,7 @@ def generate_query(ds, is_default, id=None):
 
 
 @when('grafana.started')
-@when_not('grafana.adminuser.added')
+@when_not('grafana.admin_password.set')
 def check_adminuser():
     """
     CREATE TABLE `user` (
@@ -353,6 +376,10 @@ def check_adminuser():
     );
     INSERT INTO "user" VALUES(1,0,'admin','root+bootstack-ps45@canonical.com','BootStack Team','309bc4e78bc60d02dc0371d9e9fa6bf9a809d5dc25c745b9e3f85c3ed49c6feccd4ffc96d1db922f4297663a209e93f7f2b6','LZeJ3nSdrC','hseJcLcnPN','',1,1,0,'light','2016-01-22 12:00:08','2016-01-22 12:02:13');
     """
+
+    # XXX: If you add any dependencies on config items here,
+    #      be sure to update config_changed() accordingly!
+
     config = hookenv.config()
     passwd = config.get('admin_password', False)
     if not passwd:
@@ -386,7 +413,7 @@ def check_adminuser():
     except sqlite3.OperationalError as e:
         hookenv.log('check_adminuser::sqlite3.OperationError: {}'.format(e))
         return
-    set_state('grafana.adminuser.added')
+    set_state('grafana.admin_password.set')
 
 
 def hpwgen(passwd, salt):
