@@ -1,7 +1,7 @@
 options:
   install_sources:
     default: |
-      - 'deb https://packagecloud.io/grafana/stable/ubuntu/ trusty main'
+      - 'deb https://packagecloud.io/grafana/stable/debian/ wheezy main'
     type: string
     description: |
       YAML list of additional installation sources, as a string. The number of
