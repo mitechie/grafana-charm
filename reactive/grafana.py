@@ -214,10 +214,9 @@ def update_nrpe_config(svc):
 
     # XXX: Update this when https://code.launchpad.net/~paulgear/charm-helpers/nrpe-service-immediate-check/+merge/300682 is merged.
     output = open('/var/lib/nagios/service-check-grafana.txt', 'w')
-    cmd = '/usr/local/lib/nagios/plugins/check_exit_status.pl -s /usr/sbin/service grafana status'
+    cmd = '/usr/local/lib/nagios/plugins/check_exit_status.pl -s /etc/init.d/grafana'
     ret = subprocess.call(cmd.split(), stdout=output, stderr=subprocess.STDOUT)
     hookenv.log('{} returned {}'.format(cmd, ret))
-
 
 
 @when_not('nrpe-external-master.available')
