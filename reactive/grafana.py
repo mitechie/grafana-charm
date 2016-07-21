@@ -201,8 +201,7 @@ def restart_grafana():
     hookenv.status_set('active', 'Started {}'.format(SVCNAME))
 
 
-# XXX: this will probably be needed eventually to ensure that the service check doesn't cause CI failures:
-# @when('grafana.started')
+@when('grafana.started')
 @when('nrpe-external-master.available')
 def update_nrpe_config(svc):
     # python-dbus is used by check_upstart_job
@@ -212,6 +211,13 @@ def update_nrpe_config(svc):
     nrpe_setup = nrpe.NRPE(hostname=hostname)
     nrpe.add_init_service_checks(nrpe_setup, SVCNAME, current_unit)
     nrpe_setup.write()
+
+    # XXX: Update this when https://code.launchpad.net/~paulgear/charm-helpers/nrpe-service-immediate-check/+merge/300682 is merged.
+    output = open('/var/lib/nagios/service-check-grafana.txt', 'w')
+    cmd = '/usr/local/lib/nagios/plugins/check_exit_status.pl -s /usr/sbin/service grafana status'
+    ret = subprocess.call(cmd.split(), stdout=output, stderr=subprocess.STDOUT)
+    hookenv.log('{} returned {}'.format(cmd, ret))
+
 
 
 @when_not('nrpe-external-master.available')
