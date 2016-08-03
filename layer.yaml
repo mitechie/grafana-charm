@@ -1,3 +1,3 @@
 includes: ['layer:basic', 'interface:nrpe-external-master', 'interface:grafana-source', 'interface:http']
 ignore: ['.*.swp' ]
-repo: bzr+ssh://bazaar.launchpad.net/~canonical-is-sa/charms/trusty/grafana/layer-grafana/
+repo: https://git.launchpad.net/grafana-charm

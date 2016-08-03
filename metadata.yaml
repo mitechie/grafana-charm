@@ -1,9 +1,11 @@
 name: grafana
 summary: Graph and Dashboard builder
-maintainer: Alvaro Uria <alvaro.uria@canonical.com>
+maintainer: Prometheus Charmers <prometheus-charmers@lists.launchpad.net>
 description: |
    Grafana is the leading graph and dashboard builder for visualizing
    time series metrics.
+series:
+  - trusty
 tags:
   - misc
   - monitoring
