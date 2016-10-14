@@ -91,3 +91,10 @@ options:
     type: string
     description: |
       Location where to put dashboard dumps
+  install_plugins:
+    default: ""
+    type: string
+    description: |
+      Comma separated list of locations where grafana plugin tarballs can be found.
+      Example:
+        install_plugins: http://my.company.com/packages/grafana/plugins/plugin-panel.tar.gz
