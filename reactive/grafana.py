@@ -68,7 +68,7 @@ def upgrade_charm():
     remove_state('grafana.configured')
 
 
-@hook('config.changed')
+@hook('config-changed')
 def config_changed():
     remove_state('grafana.configured')
     config = hookenv.config()
