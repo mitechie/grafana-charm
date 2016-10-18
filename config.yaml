@@ -95,6 +95,6 @@ options:
     default: ""
     type: string
     description: |
-      Comma separated list of locations where grafana plugin tarballs can be found.
+      Comma separated list of http(s) URLs where grafana plugin tarballs can be found.
       Example:
         install_plugins: http://my.company.com/packages/grafana/plugins/plugin-panel.tar.gz
