@@ -7,12 +7,13 @@ import requests
 import json
 import subprocess
 import base64
+import shutil
 from charmhelpers import fetch
 from charmhelpers.core import host, hookenv, unitdata
 from charmhelpers.core.templating import render
 from charmhelpers.contrib.charmsupport import nrpe
 from charms.reactive import hook, remove_state, set_state, when, when_not
-from charms.reactive.helpers import any_file_changed, data_changed
+from charms.reactive.helpers import any_file_changed, data_changed, is_state
 
 
 try:
@@ -61,6 +62,41 @@ def install_packages():
     hookenv.status_set('active', 'Completed installing grafana')
 
 
+@when('grafana.installed')
+@when('config.changed.install_plugins')
+def install_plugins():
+    plugins_dir = '/var/lib/grafana/plugins/'
+
+    if os.path.exists(plugins_dir):
+        hookenv.log('Cleaning up currently installed plugins')
+        hookenv.status_set('maintenance', 'Cleaning up currently installed plugins')
+        for entry in os.listdir(plugins_dir):
+            entry_path = os.path.join(plugins_dir, entry)
+            if os.path.isfile(entry_path):
+                os.unlink(entry_path)
+            elif os.path.isdir(entry_path):
+                shutil.rmtree(entry_path)
+        hookenv.log('Completed cleaning up grafana plugins')
+        hookenv.status_set('active', 'Completed cleaning up grafana plugins')
+
+    config = hookenv.config()
+    if config.get('install_plugins', False):
+        hookenv.log('Installing plugins')
+        hookenv.status_set('maintenance', 'Installing plugins')
+        plugin_file = '/tmp/grafana-plugin.tar.gz'
+        for plugin_url in config.get('install_plugins').split(','):
+            plugin_url = plugin_url.strip()
+            hookenv.log('Downloading plugin: {!r}'.format(plugin_url))
+            with open(plugin_file, 'wb') as f:
+                r = requests.get(plugin_url, stream=True)
+                for block in r.iter_content(1024):
+                    f.write(block)
+            hookenv.log('Extracting plugin: {!r}'.format(plugin_url))
+            shutil.unpack_archive(plugin_file, plugins_dir)
+        hookenv.log('Completed installing grafana plugins')
+        hookenv.status_set('active', 'Completed installing grafana plugins')
+
+
 @hook('upgrade-charm')
 def upgrade_charm():
     hookenv.status_set('maintenance', 'Forcing package update and reconfiguration on upgrade-charm')
@@ -68,7 +104,7 @@ def upgrade_charm():
     remove_state('grafana.configured')
 
 
-@hook('config.changed')
+@hook('config-changed')
 def config_changed():
     remove_state('grafana.configured')
     config = hookenv.config()
@@ -191,7 +227,7 @@ def restart_grafana():
         hookenv.status_set('maintenance', msg)
         hookenv.log(msg)
         host.service_start(SVCNAME)
-    elif any_file_changed([GRAFANA_INI]):
+    elif any_file_changed([GRAFANA_INI]) or is_state('config.changed.install_plugins'):
         msg = 'Restarting {}'.format(SVCNAME)
         hookenv.log(msg)
         hookenv.status_set('maintenance', msg)
