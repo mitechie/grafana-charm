@@ -36,5 +36,5 @@ Assemble the charm:
 Author: Alvaro Uria <alvaro.uria@canonical.com>, Jacek Nykis <jacek.nykis@canonical.com>
 Report bugs at: https://bugs.launchpad.net/charms/+source/grafana
 Location:
-  Composed grafana charm: lp:~canonical-is-sa/charms/trusty/grafana/grafana
-  Grafana layer: lp:~canonical-is-sa/charms/trusty/grafana/layer-grafana 
+  Composed grafana charm: cs:~prometheus-charmers/grafana
+  Grafana layer: https://code.launchpad.net/grafana-charm
