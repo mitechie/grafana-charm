@@ -6,6 +6,7 @@ description: |
    time series metrics.
 series:
   - trusty
+  - xenial
 tags:
   - misc
   - monitoring
