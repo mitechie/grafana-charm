@@ -21,7 +21,7 @@ http_port = 3000
 ;enforce_domain = false
 
 # The full public facing url
-;root_url = %(protocol)s://%(domain)s:%(http_port)s/
+root_url = {{ config.root_url }}
 
 # Log web requests
 ;router_logging = false
@@ -181,6 +181,15 @@ org_role = {{ config['anonymous_role'] }}
 
 #################################### SMTP / Emailing ##########################
 [smtp]
+{% if config.smtp_is_enabled %}
+enabled = {{ config.smtp_is_enabled }}
+host = {{ config.smtp_host }}:{{ config.smtp_port }}
+{% if config.smtp_user %}
+user = {{ config.smtp_user }}
+password = {{ config.smtp_password }}
+{% endif %}
+from_address = {{ config.smtp_from_address }}
+{% else %}
 ;enabled = false
 ;host = localhost:25
 ;user =
@@ -189,6 +198,7 @@ org_role = {{ config['anonymous_role'] }}
 ;key_file =
 ;skip_verify = false
 ;from_address = admin@grafana.localhost
+{% endif %}
 
 [emails]
 ;welcome_email_on_sign_up = false
