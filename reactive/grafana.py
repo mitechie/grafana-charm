@@ -180,6 +180,10 @@ def setup_grafana():
     hookenv.status_set('maintenance', 'Configuring grafana')
     config = hookenv.config()
     settings = {'config': config}
+    smtp_auth = config.get('smtp_auth', False)
+    if smtp_auth and len(smtp_auth.split(':')) == 2:
+        settings['smtp_user'] = smtp_auth.split(':')[0]
+        settings['smtp_password'] = smtp_auth.split(':')[1]
     render(source=GRAFANA_INI_TMPL,
            target=GRAFANA_INI,
            context=settings,
@@ -248,7 +252,8 @@ def update_nrpe_config(svc):
     nrpe.add_init_service_checks(nrpe_setup, SVCNAME, current_unit)
     nrpe_setup.write()
 
-    # XXX: Update this when https://code.launchpad.net/~paulgear/charm-helpers/nrpe-service-immediate-check/+merge/300682 is merged.
+    # XXX: Update this when this is merged:
+    # https://code.launchpad.net/~paulgear/charm-helpers/nrpe-service-immediate-check/+merge/300682
     output = open('/var/lib/nagios/service-check-grafana.txt', 'w')
     cmd = '/usr/local/lib/nagios/plugins/check_exit_status.pl -s /etc/init.d/grafana'
     ret = subprocess.call(cmd.split(), stdout=output, stderr=subprocess.STDOUT)

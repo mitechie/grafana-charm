@@ -181,12 +181,12 @@ org_role = {{ config['anonymous_role'] }}
 
 #################################### SMTP / Emailing ##########################
 [smtp]
-{% if config.smtp_is_enabled %}
-enabled = {{ config.smtp_is_enabled }}
-host = {{ config.smtp_host }}:{{ config.smtp_port }}
-{% if config.smtp_user %}
-user = {{ config.smtp_user }}
-password = {{ config.smtp_password }}
+{% if config.smtp_host %}
+enabled = True
+host = {{ config.smtp_host }}
+{% if smtp_user and smtp_password %}
+user = {{ smtp_user }}
+password = {{ smtp_password }}
 {% endif %}
 from_address = {{ config.smtp_from_address }}
 {% else %}

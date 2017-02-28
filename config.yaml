@@ -95,31 +95,20 @@ options:
     type: string
     description: |
       Location where to put dashboard dumps
-  smtp_is_enabled:
-    default: false
-    type: boolean
-    description: |
-      Boolean whether the charm should configure the smtp plugin.
   smtp_host:
     default: ""
     type: string
     description: |
-      The SMTP host that grafana will send emails via.
-  smtp_port:
+      The SMTP host and port that grafana will send emails via. If unset SMTP will not be enabled
+      Example:
+         smtp.example.com:25
+  smtp_auth:
     default: ""
     type: string
     description: |
-      The SMTP port that the SMTP host is listening on.
-  smtp_user:
-    default: ""
-    type: string
-    description: |
-      The SMTP user that the Grafana plugin will attempt to authenticate with.
-  smtp_password:
-    default: ""
-    type: string
-    description: |
-      The SMTP password that the Grafana plugin will attempt to authenticate with.
+      The SMTP username and password that the Grafana plugin will authenticate with
+      in "username:password" format. Example
+        mysmtpuser:secret
   smtp_from_address:
     default: admin@grafana.localhost
     type: string
