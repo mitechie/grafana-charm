@@ -1,7 +1,10 @@
 #
 # Please do not edit. Juju will overwrite it.
 #
-app_mode = {{ config['app_mode'] }}
+app_mode = {{ config.app_mode }}
+{% if config.instance_name %}
+instance_name = {{ config.instance_name }}
+{% endif %}
 
 [server]
 # Protocol (http or https)

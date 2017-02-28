@@ -33,6 +33,12 @@ options:
     default: 'production'
     type: string
     description: 'production or development'
+  instance_name:
+    default: ''
+    type: string
+    description: |
+      Grafana instance name, for example "grafana.example.com". If unset
+      defaults to server hostname
   root_url:
     default: '%(protocol)s://%(domain)s:%(http_port)s/'
     type: string
