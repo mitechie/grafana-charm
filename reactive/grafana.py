@@ -249,7 +249,7 @@ def update_nrpe_config(svc):
     hostname = nrpe.get_nagios_hostname()
     current_unit = nrpe.get_nagios_unit_name()
     nrpe_setup = nrpe.NRPE(hostname=hostname)
-    nrpe.add_init_service_checks(nrpe_setup, SVCNAME, current_unit)
+    nrpe.add_init_service_checks(nrpe_setup, [SVCNAME], current_unit)
     nrpe_setup.write()
 
     # XXX: Update this when this is merged:
