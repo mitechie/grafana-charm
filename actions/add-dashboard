@@ -1,0 +1,47 @@
+#!/usr/bin/python3
+# Imports a json based dashboard into grafana
+
+import requests
+import json
+import base64
+from charmhelpers.core.hookenv import (
+    action_fail,
+    action_set,
+    action_get,
+    config,
+)
+
+from charmhelpers.core import unitdata
+
+kv = unitdata.kv()
+if kv.get('grafana.admin_password'):
+        print('Admin password: {}'.format(kv.get('grafana.admin_password')))
+        passwd = kv.get('grafana.admin_password')
+elif config('admin_password'):
+        passwd = config('admin_password')
+        print('Admin password: {}'.format(config('admin_password')))
+else:
+        action_fail('ERROR! Unable to retrieve password.')
+
+grafana = "http://localhost:3000"
+api_auth = ('admin', passwd)
+api_dash_import_url = "/api/dashboards/import"
+dashboard_data = json.loads(base64.b64decode(action_get('dashboard')).decode('utf-8'))
+# Needs to be the format:
+# { "dashboard": { dashboard },
+#   "overwrite": true }
+
+# For trusty
+# headers = {'Content-Type': 'application/json'}
+# r = requests.post(grafana + api_dash_import_url, auth=api_auth, headers=headers,
+#                  data=json.dumps(dashboard_data))
+
+# For xenial+
+r = requests.post(grafana + api_dash_import_url, auth=api_auth, json=dashboard_data)
+# if r.status_code == requests.codes.ok:  # For python-requests 2.18 or so
+title = dashboard_data['dashboard']['title']
+if r.status_code == 200:
+    action_set({"loaded": title})
+else:
+    action_fail("Dashboard %s failed to load" % (title))
+
