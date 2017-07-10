@@ -29,16 +29,12 @@ api_dash_import_url = "/api/dashboards/import"
 dashboard_data = json.loads(base64.b64decode(action_get('dashboard')).decode('utf-8'))
 # Needs to be the format:
 # { "dashboard": { dashboard },
-#   "overwrite": true }
+#   "overwrite": true } - use false here if you don't want to overwrite 
+#                         existing dashboards
 
-# For trusty, use for better compatability
 headers = {'Content-Type': 'application/json'}
 r = requests.post(grafana + api_dash_import_url, auth=api_auth, headers=headers,
                   data=json.dumps(dashboard_data))
-
-# For xenial+
-# r = requests.post(grafana + api_dash_import_url, auth=api_auth, json=dashboard_data)
-# if r.status_code == requests.codes.ok:  # For python-requests 2.18 or so
 title = dashboard_data['dashboard']['title']
 if r.status_code == 200:
     action_set({"loaded": title})

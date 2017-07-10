@@ -1,8 +1,8 @@
-add-dashboard:
-  description: Adds a dashboard to grafana, takes dashboard argument, base64 encoded json dashboard
+import-dashboard:
+  description: Imports a dashboard to grafana, takes dashboard argument, base64 encoded json dashboard
   params:
     dashboard:
       type: string
-      description: Contains the dashboard to be imported, in base64 json format
+      description: Contains the dashboard to be imported, in base64 encoded json format
   required: [dashboard]
   additionalProperties: false
