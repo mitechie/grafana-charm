@@ -15,18 +15,30 @@ from charmhelpers.core import unitdata
 
 kv = unitdata.kv()
 if kv.get('grafana.admin_password'):
-        # print('Admin password: {}'.format(kv.get('grafana.admin_password')))
-        passwd = kv.get('grafana.admin_password')
+    # print('Admin password: {}'.format(kv.get('grafana.admin_password')))
+    passwd = kv.get('grafana.admin_password')
 elif config('admin_password'):
-        passwd = config('admin_password')
-        # print('Admin password: {}'.format(config('admin_password')))
+    passwd = config('admin_password')
+    # print('Admin password: {}'.format(config('admin_password')))
 else:
-        action_fail('ERROR! Unable to retrieve password.')
+    action_fail('ERROR! Unable to retrieve password.')
+    exit(0)
 
 grafana = "http://localhost:3000"
 api_auth = ('admin', passwd)
 api_dash_import_url = "/api/dashboards/import"
-dashboard_data = json.loads(base64.b64decode(action_get('dashboard')).decode('utf-8'))
+try:
+    dashboard_data = json.loads(base64.b64decode(action_get('dashboard')).decode('utf-8'))
+except base64.binascii.Error:
+    action_fail("Failed to base64 decode dashboard!")
+    exit(0)
+except json.JSONDecodeError as e:
+    action_fail("Fail to json decode the dashboard: %s" % (e.msg))
+    exit(0)
+else:
+    action_fail("Unknown error dealing with dashboard!")
+    exit(0)
+
 # Needs to be the format:
 # { "dashboard": { dashboard },
 #   "overwrite": true } - use false here if you don't want to overwrite 
