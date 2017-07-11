@@ -4,15 +4,18 @@
 import requests
 import json
 import base64
-import sys
+import traceback
 from charmhelpers.core.hookenv import (
     action_fail,
     action_set,
     action_get,
     config,
+    log,
 )
 
 from charmhelpers.core import unitdata
+
+action = "import-dashboard"
 
 kv = unitdata.kv()
 if kv.get('grafana.admin_password'):
@@ -36,10 +39,12 @@ except base64.binascii.Error:
 except json.JSONDecodeError as e:
     action_fail("Fail to json decode the dashboard: %s" % (e.msg))
     exit(0)
-except:
-    e = sys.exc_info()[0]
-    action_fail("Unknown error dealing with dashboard: %s" % e)
-    exit(0)
+except Exception:
+    action_fail('Unhandled exception')
+    tb = traceback.format_exc()
+    action_set(dict(traceback=tb))
+    log('Unhandled exception in action {}'.format(action))
+    print(tb)
 
 # Needs to be the format:
 # { "dashboard": { dashboard },
