@@ -20,3 +20,5 @@ provides:
 requires:
   grafana-source:
     interface: grafana-source
+  database:
+    interface: mysql

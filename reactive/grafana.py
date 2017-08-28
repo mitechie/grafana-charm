@@ -295,6 +295,27 @@ def configure_website(website):
     website.configure(port=hookenv.config('port'))
 
 
+
+@when('mysql.available')
+def setup_mysql(mysql):
+    import pdb; pdb.set_trace()
+    conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
+    cur = conn.cursor()
+    query = cur.execute('SELECT id, type, name, url, is_default FROM DATA_SOURCE')
+    rows = query.fetchall()
+    ds_name = '{} - {}'.format(ds['service_name'], ds['description'])
+
+    render(source='my.conf',
+           target='/etc/app/app.conf',
+           context={
+               'db_host': mysql.host(),
+               'db_port': mysql.port(),
+               'db_name': mysql.database(),
+               'db_user': mysql.user(),
+               'db_pass': mysql.password(),
+            })
+
+
 def validate_datasources():
     """TODO: make sure datasources option is merged with
     relation data
