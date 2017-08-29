@@ -1,19 +1,34 @@
-import six
-import os
+import base64
+import datetime
 import glob
 import hashlib
-import datetime
-import requests
 import json
-import subprocess
-import base64
+import os
+import requests
 import shutil
-from charmhelpers import fetch
-from charmhelpers.core import host, hookenv, unitdata
-from charmhelpers.core.templating import render
+import six
+import subprocess
+
 from charmhelpers.contrib.charmsupport import nrpe
-from charms.reactive import hook, remove_state, set_state, when, when_not
-from charms.reactive.helpers import any_file_changed, data_changed, is_state
+from charmhelpers.core import (
+    hookenv,
+    host,
+    unitdata,
+)
+from charmhelpers.core.templating import render
+from charmhelpers import fetch
+from charms.reactive.helpers import (
+    any_file_changed,
+    data_changed,
+    is_state,
+)
+from charms.reactive import (
+    hook,
+    remove_state,
+    set_state,
+    when,
+    when_not,
+)
 
 
 try:
@@ -390,15 +405,32 @@ def check_datasource(ds):
 
 def generate_query(ds, is_default, id=None):
     if not id:
-        stmt = 'INSERT INTO DATA_SOURCE (org_id, version, type, name' + \
-               ', access, url, is_default, created, updated, basic_auth'
-        if 'username' in ds and 'password' in ds:
-            stmt += ', basic_auth_user, basic_auth_password)' + \
-                    ' VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
-        else:
-            stmt += ') VALUES (?,?,?,?,?,?,?,?,?,?)'
+        fields = [
+            'org_id',
+            'version',
+            'type',
+            'name',
+            'access',
+            'url',
+            'is_default',
+            'created',
+            'updated',
+        ]
+
+        # Modify the url value before it's put into the query.
+        if ds['type'] == 'mysql':
+            hookenv.log('Found mysql data type')
+            split = ds['url'].split('/')
+            database = split[-1]
+            hookenv.log('Database is {}'.format(database))
+            # Remove the database name from the split values.
+            split.pop()
+            # And put the rest of the dsn back together.
+            ds['url'] = '/'.join(split)
+            hookenv.log('New url is {}'.format(ds['url']))
+
         dtime = datetime.datetime.today().strftime("%F %T")
-        values = (1,
+        values = [1,
                   0,
                   ds['type'],
                   '{} - {}'.format(ds['service_name'], ds['description']),
@@ -406,11 +438,48 @@ def generate_query(ds, is_default, id=None):
                   ds['url'],
                   is_default,
                   dtime,
-                  dtime)
-        if 'username' in ds and 'password' in ds:
-            values = values + (1, ds['username'], ds['password'])
+                  dtime]
+
+        # But add the database field to the list after the values are setup.
+        if ds['type'] == 'mysql':
+            hookenv.log('Adding fields for the database')
+            fields.append('database')
+            values.append(database)
+
+            # There's only one username/password on the interface to we coopt
+            # it for the mysql login in the mysql case
+            fields.append('username')
+            values.append(ds['username'])
+            fields.append('password')
+            values.append(ds['password'])
+
+        if 'username' in ds and 'password' in ds and ds['type'] != 'msyql':
+            # We use the username and password in a backward compatible way
+            # for basic_auth when it's not a mysql data source.
+            hookenv.log('Adding basic_auth info')
+            fields.append('basic_auth')
+            fields.append('basic_auth_user')
+            fields.append('basic_auth_password')
+            values.append(1)
+            values.append(ds['username'])
+            values.append(ds['password'])
         else:
-            values = values + (0,)
+            fields.append('basic_auth')
+            values.append(0)
+
+        values_placeholders = '?, ' * len(values)
+
+        stmt = """
+         INSERT INTO DATA_SOURCE ({})
+         VALUES ({})
+        """.format(
+            ", ".join(fields),
+            values_placeholders.rtrim(',')
+        )
+
+        hookenv.log('Statement is: \n{}'.format(stmt))
+        hookenv.log(values)
+
     else:
         if 'username' in ds and 'password' in ds:
             stmt = 'UPDATE DATA_SOURCE SET basic_auth_user = ?, basic_auth_password = ?, basic_auth = 1'
