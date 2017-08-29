@@ -420,6 +420,18 @@ def generate_query(ds, is_default, id=None):
         # Modify the url value before it's put into the query.
         if ds['type'] == 'mysql':
             hookenv.log('Found mysql data type')
+            if ds['url'].startswith('http://'):
+                ds['url'] = ds['url'][7:]
+                # The interface also prepends with the unit IP address of the
+                # relation endpoint, but we want the MySQL IP address instead.
+                # So we need to split this up and get rid of the first IP
+                # address of by the ':'
+                ip_split = ds['url'].split(':')
+                ds['url'] = ':'.join(ip_split[1:])
+
+            # The DSN is passed with a /database at the end of the connecting
+            # URL. This breaks that off and stores it its own value for the
+            # data source db table.
             split = ds['url'].split('/')
             database = split[-1]
             hookenv.log('Database is {}'.format(database))
@@ -448,7 +460,7 @@ def generate_query(ds, is_default, id=None):
 
             # There's only one username/password on the interface to we coopt
             # it for the mysql login in the mysql case
-            fields.append('username')
+            fields.append('user')
             values.append(ds['username'])
             fields.append('password')
             values.append(ds['password'])
@@ -468,13 +480,15 @@ def generate_query(ds, is_default, id=None):
             values.append(0)
 
         values_placeholders = '?, ' * len(values)
+        # Remove the space [, ] at the end of the generated string.
+        values_placeholders = values_placeholders[:-2]
 
         stmt = """
          INSERT INTO DATA_SOURCE ({})
          VALUES ({})
         """.format(
             ", ".join(fields),
-            values_placeholders.rtrim(',')
+            values_placeholders
         )
 
         hookenv.log('Statement is: \n{}'.format(stmt))
