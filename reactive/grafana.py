@@ -69,7 +69,8 @@ def install_plugins():
 
     if os.path.exists(plugins_dir):
         hookenv.log('Cleaning up currently installed plugins')
-        hookenv.status_set('maintenance', 'Cleaning up currently installed plugins')
+        hookenv.status_set(
+            'maintenance', 'Cleaning up currently installed plugins')
         for entry in os.listdir(plugins_dir):
             entry_path = os.path.join(plugins_dir, entry)
             if os.path.isfile(entry_path):
@@ -99,7 +100,9 @@ def install_plugins():
 
 @hook('upgrade-charm')
 def upgrade_charm():
-    hookenv.status_set('maintenance', 'Forcing package update and reconfiguration on upgrade-charm')
+    hookenv.status_set(
+        'maintenance',
+        'Forcing package update and reconfiguration on upgrade-charm')
     remove_state('grafana.installed')
     remove_state('grafana.configured')
 
@@ -149,15 +152,22 @@ def add_backup_api_keys():
     hookenv.log('Adding backup API keys for all organizations...')
     for i in select_query('SELECT id FROM org'):
         org_id = i[0]
-        if select_query('SELECT id FROM api_key WHERE org_id=? AND name=?', [org_id, name]):
-            hookenv.log('API key {} in org {} already exists, skipping'.format(name, org_id))
+        if select_query(
+                'SELECT id FROM api_key WHERE org_id=? AND name=?',
+                [org_id, name]):
+            hookenv.log('API key {} in org {} already exists, skipping'.format(
+                name, org_id))
             continue
         j = {'n': name,
              'k': passwd,
              'id': org_id}
-        encoded = base64.b64encode(json.dumps(j).encode('ascii')).decode('ascii')
-        stmt = 'INSERT INTO api_key (org_id, name, key, role, created, updated)' + \
-               ' VALUES (?,?,?,"Viewer",?,?)'
+        encoded = base64.b64encode(
+            json.dumps(j).encode('ascii')
+        ).decode('ascii')
+        stmt = """
+            INSERT INTO api_key (org_id, name, key, role, created, updated)
+            VALUES (?,?,?,"Viewer",?,?)
+        """
         dtime = datetime.datetime.today().strftime("%F %T")
         params = [org_id, name, hpasswd, dtime, dtime]
         insert_query(stmt, params)
@@ -206,9 +216,11 @@ def setup_backup_shedule():
 
     config = hookenv.config()
     if config.get('dashboards_backup_schedule', False):
-        hookenv.status_set('maintenance', 'Configuring grafana dashboard backup')
+        hookenv.status_set(
+            'maintenance', 'Configuring grafana dashboard backup')
         hookenv.log('Setting up dashboards backup job...')
-        host.rsync('files/dashboards_backup', '/usr/local/bin/dashboards_backup')
+        host.rsync('files/dashboards_backup',
+                   '/usr/local/bin/dashboards_backup')
         host.mkdir(config.get('dashboards_backup_dir'))
         settings = {'schedule': config.get('dashboards_backup_schedule'),
                     'directory': config.get('dashboards_backup_dir'),
@@ -219,7 +231,8 @@ def setup_backup_shedule():
                owner='root', group='root',
                perms=0o640,
                )
-        hookenv.status_set('active', 'Completed configuring grafana dashboard backup')
+        hookenv.status_set(
+            'active', 'Completed configuring grafana dashboard backup')
     set_state('grafana.backup.configured')
 
 
@@ -231,7 +244,8 @@ def restart_grafana():
         hookenv.status_set('maintenance', msg)
         hookenv.log(msg)
         host.service_start(SVCNAME)
-    elif any_file_changed([GRAFANA_INI]) or is_state('config.changed.install_plugins'):
+    elif any_file_changed(
+            [GRAFANA_INI]) or is_state('config.changed.install_plugins'):
         msg = 'Restarting {}'.format(SVCNAME)
         hookenv.log(msg)
         hookenv.status_set('maintenance', msg)
@@ -295,27 +309,6 @@ def configure_website(website):
     website.configure(port=hookenv.config('port'))
 
 
-
-@when('mysql.available')
-def setup_mysql(mysql):
-    import pdb; pdb.set_trace()
-    conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
-    cur = conn.cursor()
-    query = cur.execute('SELECT id, type, name, url, is_default FROM DATA_SOURCE')
-    rows = query.fetchall()
-    ds_name = '{} - {}'.format(ds['service_name'], ds['description'])
-
-    render(source='my.conf',
-           target='/etc/app/app.conf',
-           context={
-               'db_host': mysql.host(),
-               'db_port': mysql.port(),
-               'db_name': mysql.database(),
-               'db_user': mysql.user(),
-               'db_pass': mysql.password(),
-            })
-
-
 def validate_datasources():
     """TODO: make sure datasources option is merged with
     relation data
@@ -352,7 +345,10 @@ def check_datasource(ds):
     , `created` DATETIME NOT NULL
     , `updated` DATETIME NOT NULL
     , `with_credentials` INTEGER NOT NULL DEFAULT 0);
-    INSERT INTO "data_source" VALUES(1,1,0,'prometheus','BootStack Prometheus','proxy','http://localhost:9090','','','',0,'','',1,'{}','2016-01-22 12:11:06','2016-01-22 12:11:11',0);
+    INSERT INTO "data_source"
+    VALUES(1,1,0,'prometheus','BootStack Prometheus','proxy',
+        'http://localhost:9090','','','',0,'','',1,'{}','2016-01-22 12:11:06',
+        '2016-01-22 12:11:11',0);
     """
 
     # ds will be similar to:
@@ -366,14 +362,18 @@ def check_datasource(ds):
 
     conn = sqlite3.connect('/var/lib/grafana/grafana.db', timeout=30)
     cur = conn.cursor()
-    query = cur.execute('SELECT id, type, name, url, is_default FROM DATA_SOURCE')
+    query = cur.execute(
+        'SELECT id, type, name, url, is_default FROM DATA_SOURCE')
     rows = query.fetchall()
     ds_name = '{} - {}'.format(ds['service_name'], ds['description'])
     print(ds_name)
     print(rows)
     for row in rows:
-        if (row[1] == ds['type'] and row[2] == ds_name and row[3] == ds['url']):
-            hookenv.log('Datasource already exist, updating: {}'.format(ds_name))
+        if (row[1] == ds['type'] and
+                row[2] == ds_name and
+                row[3] == ds['url']):
+            hookenv.log(
+                'Datasource already exist, updating: {}'.format(ds_name))
             stmt, values = generate_query(ds, row[4], row[0])
             print(stmt, values)
             cur.execute(stmt, values)
@@ -475,7 +475,8 @@ def check_adminuser():
                     conn.commit()
                     hookenv.log('[*] admin password updated on database')
                 else:
-                    hookenv.log('Could not update user table: hpwgen func failed')
+                    hookenv.log(
+                        'Could not update user table: hpwgen func failed')
                 break
         conn.close()
     except sqlite3.OperationalError as e:

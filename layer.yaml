@@ -1,3 +1,3 @@
-includes: ['layer:basic', 'interface:nrpe-external-master', 'interface:grafana-source', 'interface:http', 'interface:mysql']
+includes: ['layer:basic', 'interface:nrpe-external-master', 'interface:grafana-source', 'interface:http']
 ignore: ['.*.swp' ]
 repo: https://git.launchpad.net/grafana-charm
